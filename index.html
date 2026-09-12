@@ -16,10 +16,17 @@
     --header-text: #2f6fb0;
     --process-border: #24262b;
     --line: #9a9da3;
+    --guide: #d7d9dd;
     --accent: #2f6fb0;
     --accent-bg: #eaf2fb;
     --danger: #c0392b;
     --danger-bg: #fbeceb;
+    --grid-cols:
+      minmax(120px,1fr) 30px
+      minmax(120px,1fr) 30px
+      minmax(150px,1.15fr) 30px
+      minmax(120px,1fr) 30px
+      minmax(120px,1fr);
   }
   *{ box-sizing: border-box; }
   body{
@@ -48,19 +55,31 @@
   }
   #board{
     min-width: 760px;
+    position: relative;
+  }
+  .grid-guides{
+    position: absolute;
+    inset: 0;
+    display:grid;
+    grid-template-columns: var(--grid-cols);
+    grid-template-rows: 1fr;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .grid-guides .guide{
+    justify-self: center;
+    width: 0;
+    border-left: 1px dashed var(--guide);
   }
   .headers, .step-grid{
     display:grid;
-    grid-template-columns:
-      minmax(120px,1fr) 30px
-      minmax(120px,1fr) 30px
-      minmax(150px,1.15fr) 30px
-      minmax(120px,1fr) 30px
-      minmax(120px,1fr);
+    grid-template-columns: var(--grid-cols);
     column-gap: 0;
     align-items: stretch;
   }
   .headers{
+    position: relative;
+    z-index: 1;
     margin-bottom: 14px;
     padding-bottom: 8px;
     border-bottom: 1px dashed #c7c9ce;
@@ -91,9 +110,48 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    color: var(--line);
-    font-size: 16px;
     min-height: 46px;
+  }
+  .arrow-h{
+    position: relative;
+    width: calc(100% - 10px);
+    height: 2px;
+    background: var(--line);
+  }
+  .arrow-h::after{
+    content:"";
+    position:absolute;
+    right:-1px;
+    top:50%;
+    transform:translateY(-50%);
+    width:0; height:0;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 6px solid var(--line);
+  }
+  .arrow-v-wrap{
+    display:flex;
+    justify-content:center;
+    align-items:stretch;
+    height:100%;
+    min-height: 26px;
+  }
+  .arrow-v{
+    position: relative;
+    width: 2px;
+    background: var(--line);
+    margin: 0 auto;
+  }
+  .arrow-v::after{
+    content:"";
+    position:absolute;
+    left:50%;
+    bottom:-1px;
+    transform:translateX(-50%);
+    width:0; height:0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid var(--line);
   }
   .box{
     width:100%;
@@ -189,14 +247,6 @@
     align-items:center;
     justify-content:center;
   }
-  .connector-row{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    min-height: 30px;
-    color: var(--line);
-    font-size: 18px;
-  }
   .connector-row .addbtn{
     width: 26px;
     height: 26px;
@@ -204,6 +254,7 @@
   }
   .step-block{
     position: relative;
+    z-index: 1;
   }
   footer{
     max-width: 1180px;
@@ -276,7 +327,18 @@
   }
 
   function arrowRight(){
-    return '<div class="arrow-cell">&#8594;</div>';
+    return '<div class="arrow-cell"><div class="arrow-h"></div></div>';
+  }
+
+  function renderGuides(){
+    return (
+      '<div class="grid-guides">' +
+        '<div class="guide" style="grid-column:2;"></div>' +
+        '<div class="guide" style="grid-column:4;"></div>' +
+        '<div class="guide" style="grid-column:6;"></div>' +
+        '<div class="guide" style="grid-column:8;"></div>' +
+      '</div>'
+    );
   }
 
   function renderHeaders(){
@@ -397,7 +459,7 @@
         '<div class="cell" style="grid-row:1; grid-column:5;">' +
           (isLast
             ? addBtn("addStep", { step: sIdx }, "Volgende processtap toevoegen")
-            : '<div class="connector-row">&#8595;</div>') +
+            : '<div class="arrow-v-wrap"><div class="arrow-v"></div></div>') +
         '</div>' +
         '<div class="cell" style="grid-row:1; grid-column:7;">' + addBtn("addOutput", { step: sIdx }, "Output toevoegen") + '</div>' +
       '</div>';
@@ -406,7 +468,7 @@
   }
 
   function render(){
-    var html = renderHeaders();
+    var html = renderGuides() + renderHeaders();
     state.steps.forEach(function(step, idx){
       html += renderStepBlock(step, idx);
     });
