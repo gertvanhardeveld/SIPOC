@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIPOC Builder</title>
+<style>
+  :root{
+    color-scheme: light;
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --grey-box: #e7e8ea;
+    --grey-box-border: #d3d5d9;
+    --grey-text: #8a8d93;
+    --dark-text: #24262b;
+    --header-text: #2f6fb0;
+    --process-border: #24262b;
+    --line: #9a9da3;
+    --accent: #2f6fb0;
+    --accent-bg: #eaf2fb;
+    --danger: #c0392b;
+    --danger-bg: #fbeceb;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--dark-text);
+    padding: 28px 16px 80px;
+  }
+  h1{
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    margin: 0 0 4px;
+  }
+  .subtitle{
+    text-align:center;
+    font-size: 12.5px;
+    color: var(--grey-text);
+    margin: 0 0 24px;
+  }
+  #board-wrap{
+    max-width: 1180px;
+    margin: 0 auto;
+    overflow-x: auto;
+  }
+  #board{
+    min-width: 760px;
+  }
+  .headers, .step-grid{
+    display:grid;
+    grid-template-columns:
+      minmax(120px,1fr) 30px
+      minmax(120px,1fr) 30px
+      minmax(150px,1.15fr) 30px
+      minmax(120px,1fr) 30px
+      minmax(120px,1fr);
+    column-gap: 0;
+    align-items: stretch;
+  }
+  .headers{
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed #c7c9ce;
+  }
+  .headers .col-label{
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--header-text);
+    text-align: center;
+    letter-spacing: .2px;
+  }
+  .step-grid{
+    row-gap: 12px;
+    padding: 14px 0;
+    position: relative;
+  }
+  .step-grid + .connector-row{
+    margin-top: -2px;
+  }
+  .cell{
+    position: relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height: 46px;
+  }
+  .arrow-cell{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color: var(--line);
+    font-size: 16px;
+    min-height: 46px;
+  }
+  .box{
+    width:100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.3;
+    text-align:center;
+    background: var(--grey-box);
+    border: 1px solid var(--grey-box-border);
+    cursor: text;
+    word-break: break-word;
+    outline: none;
+    transition: box-shadow .12s ease, border-color .12s ease;
+  }
+  .box.placeholder{
+    color: var(--grey-text);
+  }
+  .box:not(.placeholder){
+    color: var(--dark-text);
+  }
+  .box:focus{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+    background: #fff;
+  }
+  .box-process{
+    background: #ffffff;
+    border: 1.5px solid var(--process-border);
+    border-radius: 10px;
+    font-weight: 600;
+    padding: 14px 16px;
+    min-height: 54px;
+  }
+  .process-wrap{
+    position: relative;
+    width: 100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .minus{
+    position:absolute;
+    top:-8px;
+    right:-8px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid #e6b3ae;
+    font-size: 12px;
+    line-height: 1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    padding:0;
+  }
+  .minus:hover{ background:#f6d5d2; }
+  .minus-step{
+    position:absolute;
+    top:-9px;
+    right:-9px;
+    width: 20px;
+    height: 20px;
+    font-size: 13px;
+  }
+  .addbtn{
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1.5px dashed #b7bac0;
+    color: #7c7f85;
+    font-size: 14px;
+    line-height: 1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor: pointer;
+    padding:0;
+  }
+  .addbtn:hover{
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-bg);
+  }
+  .addbtn-row{
+    width: 100%;
+    height: 100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .connector-row{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height: 30px;
+    color: var(--line);
+    font-size: 18px;
+  }
+  .connector-row .addbtn{
+    width: 26px;
+    height: 26px;
+    font-size: 16px;
+  }
+  .step-block{
+    position: relative;
+  }
+  footer{
+    max-width: 1180px;
+    margin: 28px auto 0;
+    text-align:center;
+    font-size: 11.5px;
+    color: var(--grey-text);
+  }
+</style>
+</head>
+<body>
+
+<h1>SIPOC</h1>
+<p class="subtitle">Klik op een vak om de tekst aan te passen &middot; gebruik + en &times; om onderdelen toe te voegen of te verwijderen</p>
+
+<div id="board-wrap">
+  <div id="board"></div>
+</div>
+
+<footer>Suppliers &middot; Input &middot; Processtap &middot; Output &middot; Customer</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var COLS = {
+    supplier: "Supplier",
+    input: "Input",
+    process: "Processtap",
+    output: "Output",
+    customer: "Customer"
+  };
+
+  var uidCounter = 0;
+  function uid(){ uidCounter += 1; return "id" + uidCounter; }
+
+  function makeStep(){ return { id: uid(), label: null, inputs: [], outputs: [] }; }
+  function makeInput(){ return { id: uid(), label: null, supplier: null }; }
+  function makeOutput(){ return { id: uid(), label: null, customer: null }; }
+  function makeSupplier(){ return { id: uid(), label: null }; }
+  function makeCustomer(){ return { id: uid(), label: null }; }
+
+  var state = { steps: [ makeStep() ] };
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, function(c){
+      return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c];
+    });
+  }
+
+  function box(opts){
+    // opts: {label, placeholder, path, extraClass}
+    var isEmpty = !opts.label;
+    var text = isEmpty ? opts.placeholder : escapeHtml(opts.label);
+    return '<div class="box ' + (opts.extraClass || '') + (isEmpty ? ' placeholder' : '') + '" ' +
+      'data-path="' + opts.path + '" data-placeholder="' + escapeHtml(opts.placeholder) + '">' +
+      text + '</div>';
+  }
+
+  function minusBtn(action, attrs, extraClass){
+    var attrStr = "";
+    for (var k in attrs){ attrStr += ' data-' + k + '="' + attrs[k] + '"'; }
+    return '<button class="minus ' + (extraClass||'') + '" data-action="' + action + '"' + attrStr + ' title="Verwijderen">&times;</button>';
+  }
+
+  function addBtn(action, attrs, title){
+    var attrStr = "";
+    for (var k in attrs){ attrStr += ' data-' + k + '="' + attrs[k] + '"'; }
+    return '<button class="addbtn" data-action="' + action + '"' + attrStr + ' title="' + title + '">+</button>';
+  }
+
+  function arrowRight(){
+    return '<div class="arrow-cell">&#8594;</div>';
+  }
+
+  function renderHeaders(){
+    return (
+      '<div class="headers">' +
+        '<div class="col-label">Suppliers</div><div></div>' +
+        '<div class="col-label">Input</div><div></div>' +
+        '<div class="col-label">Processtap</div><div></div>' +
+        '<div class="col-label">Output</div><div></div>' +
+        '<div class="col-label">Customer</div>' +
+      '</div>'
+    );
+  }
+
+  function renderStepBlock(step, sIdx){
+    var rowCount = Math.max(step.inputs.length, step.outputs.length, 1);
+    var rowsHtml = "";
+
+    for (var r = 0; r < rowCount; r++){
+      var inp = step.inputs[r];
+      var out = step.outputs[r];
+
+      // --- Supplier cell ---
+      var supplierCellInner, arrowSupplierInput;
+      if (inp){
+        if (inp.supplier){
+          supplierCellInner =
+            '<div class="process-wrap">' +
+              box({ label: inp.supplier.label, placeholder: COLS.supplier, path: sIdx + ".input." + r + ".supplier.label", extraClass: "box-supplier" }) +
+              minusBtn("removeSupplier", { step: sIdx, input: r }) +
+            '</div>';
+          arrowSupplierInput = arrowRight();
+        } else {
+          supplierCellInner = addBtn("addSupplier", { step: sIdx, input: r }, "Supplier toevoegen");
+          arrowSupplierInput = '<div class="arrow-cell"></div>';
+        }
+      } else {
+        supplierCellInner = "";
+        arrowSupplierInput = '<div class="arrow-cell"></div>';
+      }
+
+      // --- Input cell ---
+      var inputCellInner, arrowInputProcess;
+      if (inp){
+        inputCellInner =
+          '<div class="process-wrap">' +
+            box({ label: inp.label, placeholder: COLS.input, path: sIdx + ".input." + r + ".label", extraClass: "box-input" }) +
+            minusBtn("removeInput", { step: sIdx, input: r }) +
+          '</div>';
+        arrowInputProcess = arrowRight();
+      } else {
+        inputCellInner = "";
+        arrowInputProcess = '<div class="arrow-cell"></div>';
+      }
+
+      // --- Process cell (only rendered on first row, spans full block) ---
+      var processCellInner = "";
+      if (r === 0){
+        processCellInner =
+          '<div class="process-wrap">' +
+            box({ label: step.label, placeholder: COLS.process, path: sIdx + ".label", extraClass: "box-process" }) +
+            minusBtn("removeStep", { step: sIdx }, "minus-step") +
+          '</div>';
+      }
+
+      // --- Output cell ---
+      var arrowProcessOutput, outputCellInner;
+      if (out){
+        arrowProcessOutput = arrowRight();
+        outputCellInner =
+          '<div class="process-wrap">' +
+            box({ label: out.label, placeholder: COLS.output, path: sIdx + ".output." + r + ".label", extraClass: "box-output" }) +
+            minusBtn("removeOutput", { step: sIdx, output: r }) +
+          '</div>';
+      } else {
+        arrowProcessOutput = '<div class="arrow-cell"></div>';
+        outputCellInner = "";
+      }
+
+      // --- Customer cell ---
+      var arrowOutputCustomer, customerCellInner;
+      if (out){
+        if (out.customer){
+          arrowOutputCustomer = arrowRight();
+          customerCellInner =
+            '<div class="process-wrap">' +
+              box({ label: out.customer.label, placeholder: COLS.customer, path: sIdx + ".output." + r + ".customer.label", extraClass: "box-customer" }) +
+              minusBtn("removeCustomer", { step: sIdx, output: r }) +
+            '</div>';
+        } else {
+          arrowOutputCustomer = '<div class="arrow-cell"></div>';
+          customerCellInner = addBtn("addCustomer", { step: sIdx, output: r }, "Customer toevoegen");
+        }
+      } else {
+        arrowOutputCustomer = '<div class="arrow-cell"></div>';
+        customerCellInner = "";
+      }
+
+      rowsHtml +=
+        '<div class="cell" style="grid-row:' + (r+1) + '; grid-column:1;">' + supplierCellInner + '</div>' +
+        '<div style="grid-row:' + (r+1) + '; grid-column:2;">' + arrowSupplierInput + '</div>' +
+        '<div class="cell" style="grid-row:' + (r+1) + '; grid-column:3;">' + inputCellInner + '</div>' +
+        '<div style="grid-row:' + (r+1) + '; grid-column:4;">' + arrowInputProcess + '</div>' +
+        (processCellInner ? ('<div class="cell" style="grid-row: 1 / span ' + rowCount + '; grid-column:5;">' + processCellInner + '</div>') : '') +
+        '<div style="grid-row:' + (r+1) + '; grid-column:6;">' + arrowProcessOutput + '</div>' +
+        '<div class="cell" style="grid-row:' + (r+1) + '; grid-column:7;">' + outputCellInner + '</div>' +
+        '<div style="grid-row:' + (r+1) + '; grid-column:8;">' + arrowOutputCustomer + '</div>' +
+        '<div class="cell" style="grid-row:' + (r+1) + '; grid-column:9;">' + customerCellInner + '</div>';
+    }
+
+    var blockHtml = '<div class="step-grid">' + rowsHtml + '</div>';
+
+    // control / connector row under the process column
+    var isLast = sIdx === state.steps.length - 1;
+    var controlHtml =
+      '<div class="step-grid" style="row-gap:0;">' +
+        '<div class="cell" style="grid-row:1; grid-column:3;">' + addBtn("addInput", { step: sIdx }, "Input toevoegen") + '</div>' +
+        '<div class="cell" style="grid-row:1; grid-column:5;">' +
+          (isLast
+            ? addBtn("addStep", { step: sIdx }, "Volgende processtap toevoegen")
+            : '<div class="connector-row">&#8595;</div>') +
+        '</div>' +
+        '<div class="cell" style="grid-row:1; grid-column:7;">' + addBtn("addOutput", { step: sIdx }, "Output toevoegen") + '</div>' +
+      '</div>';
+
+    return '<div class="step-block" data-step-block="' + sIdx + '">' + blockHtml + controlHtml + '</div>';
+  }
+
+  function render(){
+    var html = renderHeaders();
+    state.steps.forEach(function(step, idx){
+      html += renderStepBlock(step, idx);
+    });
+    document.getElementById("board").innerHTML = html;
+  }
+
+  function getByPath(path){
+    // path like "0.label" or "0.input.2.supplier.label"
+    var parts = path.split(".");
+    var stepIdx = parseInt(parts[0], 10);
+    var step = state.steps[stepIdx];
+    if (parts.length === 2) return { obj: step, key: parts[1] };
+    if (parts[1] === "input"){
+      var inp = step.inputs[parseInt(parts[2], 10)];
+      if (parts.length === 4) return { obj: inp, key: parts[3] };
+      if (parts[3] === "supplier") return { obj: inp.supplier, key: parts[4] };
+    }
+    if (parts[1] === "output"){
+      var out = step.outputs[parseInt(parts[2], 10)];
+      if (parts.length === 4) return { obj: out, key: parts[3] };
+      if (parts[3] === "customer") return { obj: out.customer, key: parts[4] };
+    }
+    return null;
+  }
+
+  function startEdit(el){
+    el.setAttribute("contenteditable", "true");
+    if (el.classList.contains("placeholder")){
+      el.textContent = "";
+    }
+    el.focus();
+    // place cursor at end
+    var range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  function finishEdit(el){
+    var path = el.getAttribute("data-path");
+    var ref = getByPath(path);
+    var value = el.textContent.replace(/\s+/g, " ").trim();
+    el.setAttribute("contenteditable", "false");
+    if (ref && ref.obj){
+      ref.obj[ref.key] = value.length ? value : null;
+    }
+    render();
+  }
+
+  var board = document.getElementById("board");
+
+  board.addEventListener("click", function(e){
+    var boxEl = e.target.closest(".box");
+    if (boxEl && boxEl.getAttribute("contenteditable") !== "true"){
+      startEdit(boxEl);
+      return;
+    }
+
+    var btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    var action = btn.getAttribute("data-action");
+    var stepIdx = btn.hasAttribute("data-step") ? parseInt(btn.getAttribute("data-step"), 10) : null;
+    var inputIdx = btn.hasAttribute("data-input") ? parseInt(btn.getAttribute("data-input"), 10) : null;
+    var outputIdx = btn.hasAttribute("data-output") ? parseInt(btn.getAttribute("data-output"), 10) : null;
+    var step = stepIdx !== null ? state.steps[stepIdx] : null;
+
+    switch (action){
+      case "addStep":
+        state.steps.push(makeStep());
+        break;
+      case "removeStep":
+        if (state.steps.length > 1){
+          state.steps.splice(stepIdx, 1);
+        } else {
+          state.steps[0] = makeStep();
+        }
+        break;
+      case "addInput":
+        step.inputs.push(makeInput());
+        break;
+      case "removeInput":
+        step.inputs.splice(inputIdx, 1);
+        break;
+      case "addSupplier":
+        step.inputs[inputIdx].supplier = makeSupplier();
+        break;
+      case "removeSupplier":
+        step.inputs[inputIdx].supplier = null;
+        break;
+      case "addOutput":
+        step.outputs.push(makeOutput());
+        break;
+      case "removeOutput":
+        step.outputs.splice(outputIdx, 1);
+        break;
+      case "addCustomer":
+        step.outputs[outputIdx].customer = makeCustomer();
+        break;
+      case "removeCustomer":
+        step.outputs[outputIdx].customer = null;
+        break;
+      default:
+        return;
+    }
+    render();
+  });
+
+  board.addEventListener("focusout", function(e){
+    var boxEl = e.target.closest(".box");
+    if (boxEl && boxEl.getAttribute("contenteditable") === "true"){
+      finishEdit(boxEl);
+    }
+  });
+
+  board.addEventListener("keydown", function(e){
+    var boxEl = e.target.closest(".box");
+    if (!boxEl) return;
+    if (e.key === "Enter"){
+      e.preventDefault();
+      boxEl.blur();
+    } else if (e.key === "Escape"){
+      e.preventDefault();
+      boxEl.blur();
+    }
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
