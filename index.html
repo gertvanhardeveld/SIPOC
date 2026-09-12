@@ -220,6 +220,15 @@
     height: 20px;
     font-size: 13px;
   }
+  .plus-step{
+    position:absolute;
+    bottom:-10px;
+    left: calc(50% + 4px);
+    width: 20px;
+    height: 20px;
+    font-size: 13px;
+    z-index: 2;
+  }
   .addbtn{
     width: 24px;
     height: 24px;
@@ -246,11 +255,6 @@
     display:flex;
     align-items:center;
     justify-content:center;
-  }
-  .connector-row .addbtn{
-    width: 26px;
-    height: 26px;
-    font-size: 16px;
   }
   .step-block{
     position: relative;
@@ -401,6 +405,7 @@
           '<div class="process-wrap">' +
             box({ label: step.label, placeholder: COLS.process, path: sIdx + ".label", extraClass: "box-process" }) +
             minusBtn("removeStep", { step: sIdx }, "minus-step") +
+            '<button class="addbtn plus-step" data-action="addStep" data-step="' + sIdx + '" title="Processtap invoegen na deze stap">+</button>' +
           '</div>';
       }
 
@@ -451,15 +456,13 @@
 
     var blockHtml = '<div class="step-grid">' + rowsHtml + '</div>';
 
-    // control / connector row under the process column
+    // control row: add-input / add-output buttons, plus the connector line down to the next step
     var isLast = sIdx === state.steps.length - 1;
     var controlHtml =
       '<div class="step-grid" style="row-gap:0;">' +
         '<div class="cell" style="grid-row:1; grid-column:3;">' + addBtn("addInput", { step: sIdx }, "Input toevoegen") + '</div>' +
         '<div class="cell" style="grid-row:1; grid-column:5;">' +
-          (isLast
-            ? addBtn("addStep", { step: sIdx }, "Volgende processtap toevoegen")
-            : '<div class="arrow-v-wrap"><div class="arrow-v"></div></div>') +
+          (isLast ? '' : '<div class="arrow-v-wrap"><div class="arrow-v"></div></div>') +
         '</div>' +
         '<div class="cell" style="grid-row:1; grid-column:7;">' + addBtn("addOutput", { step: sIdx }, "Output toevoegen") + '</div>' +
       '</div>';
@@ -539,7 +542,7 @@
 
     switch (action){
       case "addStep":
-        state.steps.push(makeStep());
+        state.steps.splice(stepIdx + 1, 0, makeStep());
         break;
       case "removeStep":
         if (state.steps.length > 1){
