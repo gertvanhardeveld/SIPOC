@@ -229,6 +229,17 @@
     font-size: 13px;
     z-index: 2;
   }
+  .edge-plus{
+    position:absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    font-size: 13px;
+    z-index: 2;
+  }
+  .edge-plus-left{ left:-10px; }
+  .edge-plus-right{ right:-10px; }
   .addbtn{
     width: 24px;
     height: 24px;
@@ -330,6 +341,12 @@
     return '<button class="addbtn" data-action="' + action + '"' + attrStr + ' title="' + title + '">+</button>';
   }
 
+  function edgeAddBtn(action, attrs, title, side){
+    var attrStr = "";
+    for (var k in attrs){ attrStr += ' data-' + k + '="' + attrs[k] + '"'; }
+    return '<button class="addbtn edge-plus edge-plus-' + side + '" data-action="' + action + '"' + attrStr + ' title="' + title + '">+</button>';
+  }
+
   function arrowRight(){
     return '<div class="arrow-cell"><div class="arrow-h"></div></div>';
   }
@@ -367,18 +384,13 @@
 
       // --- Supplier cell ---
       var supplierCellInner, arrowSupplierInput;
-      if (inp){
-        if (inp.supplier){
-          supplierCellInner =
-            '<div class="process-wrap">' +
-              box({ label: inp.supplier.label, placeholder: COLS.supplier, path: sIdx + ".input." + r + ".supplier.label", extraClass: "box-supplier" }) +
-              minusBtn("removeSupplier", { step: sIdx, input: r }) +
-            '</div>';
-          arrowSupplierInput = arrowRight();
-        } else {
-          supplierCellInner = addBtn("addSupplier", { step: sIdx, input: r }, "Supplier toevoegen");
-          arrowSupplierInput = '<div class="arrow-cell"></div>';
-        }
+      if (inp && inp.supplier){
+        supplierCellInner =
+          '<div class="process-wrap">' +
+            box({ label: inp.supplier.label, placeholder: COLS.supplier, path: sIdx + ".input." + r + ".supplier.label", extraClass: "box-supplier" }) +
+            minusBtn("removeSupplier", { step: sIdx, input: r }) +
+          '</div>';
+        arrowSupplierInput = arrowRight();
       } else {
         supplierCellInner = "";
         arrowSupplierInput = '<div class="arrow-cell"></div>';
@@ -391,6 +403,7 @@
           '<div class="process-wrap">' +
             box({ label: inp.label, placeholder: COLS.input, path: sIdx + ".input." + r + ".label", extraClass: "box-input" }) +
             minusBtn("removeInput", { step: sIdx, input: r }) +
+            (inp.supplier ? '' : edgeAddBtn("addSupplier", { step: sIdx, input: r }, "Supplier toevoegen", "left")) +
           '</div>';
         arrowInputProcess = arrowRight();
       } else {
@@ -406,6 +419,8 @@
             box({ label: step.label, placeholder: COLS.process, path: sIdx + ".label", extraClass: "box-process" }) +
             minusBtn("removeStep", { step: sIdx }, "minus-step") +
             '<button class="addbtn plus-step" data-action="addStep" data-step="' + sIdx + '" title="Processtap invoegen na deze stap">+</button>' +
+            edgeAddBtn("addInput", { step: sIdx }, "Input toevoegen", "left") +
+            edgeAddBtn("addOutput", { step: sIdx }, "Output toevoegen", "right") +
           '</div>';
       }
 
@@ -417,6 +432,7 @@
           '<div class="process-wrap">' +
             box({ label: out.label, placeholder: COLS.output, path: sIdx + ".output." + r + ".label", extraClass: "box-output" }) +
             minusBtn("removeOutput", { step: sIdx, output: r }) +
+            (out.customer ? '' : edgeAddBtn("addCustomer", { step: sIdx, output: r }, "Customer toevoegen", "right")) +
           '</div>';
       } else {
         arrowProcessOutput = '<div class="arrow-cell"></div>';
@@ -425,18 +441,13 @@
 
       // --- Customer cell ---
       var arrowOutputCustomer, customerCellInner;
-      if (out){
-        if (out.customer){
-          arrowOutputCustomer = arrowRight();
-          customerCellInner =
-            '<div class="process-wrap">' +
-              box({ label: out.customer.label, placeholder: COLS.customer, path: sIdx + ".output." + r + ".customer.label", extraClass: "box-customer" }) +
-              minusBtn("removeCustomer", { step: sIdx, output: r }) +
-            '</div>';
-        } else {
-          arrowOutputCustomer = '<div class="arrow-cell"></div>';
-          customerCellInner = addBtn("addCustomer", { step: sIdx, output: r }, "Customer toevoegen");
-        }
+      if (out && out.customer){
+        arrowOutputCustomer = arrowRight();
+        customerCellInner =
+          '<div class="process-wrap">' +
+            box({ label: out.customer.label, placeholder: COLS.customer, path: sIdx + ".output." + r + ".customer.label", extraClass: "box-customer" }) +
+            minusBtn("removeCustomer", { step: sIdx, output: r }) +
+          '</div>';
       } else {
         arrowOutputCustomer = '<div class="arrow-cell"></div>';
         customerCellInner = "";
@@ -456,15 +467,11 @@
 
     var blockHtml = '<div class="step-grid">' + rowsHtml + '</div>';
 
-    // control row: add-input / add-output buttons, plus the connector line down to the next step
+    // control row: just the connector line down to the next step (add-input/add-output now live on the process box itself)
     var isLast = sIdx === state.steps.length - 1;
-    var controlHtml =
+    var controlHtml = isLast ? '' :
       '<div class="step-grid" style="row-gap:0;">' +
-        '<div class="cell" style="grid-row:1; grid-column:3;">' + addBtn("addInput", { step: sIdx }, "Input toevoegen") + '</div>' +
-        '<div class="cell" style="grid-row:1; grid-column:5;">' +
-          (isLast ? '' : '<div class="arrow-v-wrap"><div class="arrow-v"></div></div>') +
-        '</div>' +
-        '<div class="cell" style="grid-row:1; grid-column:7;">' + addBtn("addOutput", { step: sIdx }, "Output toevoegen") + '</div>' +
+        '<div class="cell" style="grid-row:1; grid-column:5;"><div class="arrow-v-wrap"><div class="arrow-v"></div></div></div>' +
       '</div>';
 
     return '<div class="step-block" data-step-block="' + sIdx + '">' + blockHtml + controlHtml + '</div>';
