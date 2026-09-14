@@ -508,6 +508,20 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-bg);
   }
+  .modal-field > select{
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--grey-box-border);
+    font-family: inherit;
+    font-size: 13.5px;
+    background: #fff;
+    outline: none;
+  }
+  .modal-field > select:focus{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+  }
   .modal-function-row{ display:flex; gap: 8px; align-items:stretch; }
   .modal-function-row select{
     flex: 1;
@@ -657,16 +671,17 @@
   function makeStep(){ return { id: makeId(), label: null, instructions: null, functionId: null, inputs: [], outputs: [] }; }
   function makeInput(){ return { id: makeId(), label: null, supplier: null }; }
   function makeOutput(){ return { id: makeId(), label: null, customer: null }; }
-  function makeSupplier(){ return { id: makeId(), label: null }; }
-  function makeCustomer(){ return { id: makeId(), label: null }; }
+  function makeSupplier(){ return { id: makeId(), label: null, kind: null, functionId: null, externalId: null }; }
+  function makeCustomer(){ return { id: makeId(), label: null, kind: null, functionId: null, externalId: null }; }
 
   // Current SIPOC being edited
   var state = { processId: null, processName: null, steps: [ makeStep() ] };
   // All processes, for the sidebar tree: [{id, name}]
   var processList = [];
   var searchText = "";
-  // Global master list of functions ("stamtabel"), shared across all processes
+  // Global master lists ("stamtabellen"), shared across all processes
   var functionsList = [];
+  var externalPartiesList = [];
 
   // ---------------------------------------------------------------------
   // Small helpers
@@ -954,32 +969,40 @@
       }));
     }));
   }
+  function inputRow(input, idx, stepId){
+    return {
+      id: input.id, step_id: stepId, position: idx, label: input.label, supplier_label: supplierValue(input),
+      supplier_kind: input.supplier ? input.supplier.kind : null,
+      supplier_function_id: input.supplier ? input.supplier.functionId : null,
+      supplier_external_id: input.supplier ? input.supplier.externalId : null
+    };
+  }
+  function outputRow(output, idx, stepId){
+    return {
+      id: output.id, step_id: stepId, position: idx, label: output.label, customer_label: customerValue(output),
+      customer_kind: output.customer ? output.customer.kind : null,
+      customer_function_id: output.customer ? output.customer.functionId : null,
+      customer_external_id: output.customer ? output.customer.externalId : null
+    };
+  }
   function syncInput(step, input){
     var idx = step.inputs.indexOf(input);
     if (idx === -1) return Promise.resolve();
-    return trackSave(sb.from("sipoc_inputs").upsert({
-      id: input.id, step_id: step.id, position: idx, label: input.label, supplier_label: supplierValue(input)
-    }));
+    return trackSave(sb.from("sipoc_inputs").upsert(inputRow(input, idx, step.id)));
   }
   function syncInputsOrder(step){
     return Promise.all(step.inputs.map(function(input, i){
-      return trackSave(sb.from("sipoc_inputs").upsert({
-        id: input.id, step_id: step.id, position: i, label: input.label, supplier_label: supplierValue(input)
-      }));
+      return trackSave(sb.from("sipoc_inputs").upsert(inputRow(input, i, step.id)));
     }));
   }
   function syncOutput(step, output){
     var idx = step.outputs.indexOf(output);
     if (idx === -1) return Promise.resolve();
-    return trackSave(sb.from("sipoc_outputs").upsert({
-      id: output.id, step_id: step.id, position: idx, label: output.label, customer_label: customerValue(output)
-    }));
+    return trackSave(sb.from("sipoc_outputs").upsert(outputRow(output, idx, step.id)));
   }
   function syncOutputsOrder(step){
     return Promise.all(step.outputs.map(function(output, i){
-      return trackSave(sb.from("sipoc_outputs").upsert({
-        id: output.id, step_id: step.id, position: i, label: output.label, customer_label: customerValue(output)
-      }));
+      return trackSave(sb.from("sipoc_outputs").upsert(outputRow(output, i, step.id)));
     }));
   }
   function deleteStepRow(id){ return trackSave(sb.from("sipoc_steps").delete().eq("id", id)); }
@@ -1010,8 +1033,44 @@
   function deleteFunctionRow(id){
     return trackSave(sb.from("functions").delete().eq("id", id)).then(function(){
       return fetchFunctions().then(function(){
-        // any step pointing at the deleted function loses the reference locally too
-        state.steps.forEach(function(step){ if (step.functionId === id) step.functionId = null; });
+        // anything referencing the deleted function loses that reference locally too
+        state.steps.forEach(function(step){
+          if (step.functionId === id) step.functionId = null;
+          step.inputs.forEach(function(inp){ if (inp.supplier && inp.supplier.functionId === id) inp.supplier.functionId = null; });
+          step.outputs.forEach(function(out){ if (out.customer && out.customer.functionId === id) out.customer.functionId = null; });
+        });
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // External parties master table ("stamtabel"): shared across all processes
+  // ---------------------------------------------------------------------
+  function fetchExternalParties(){
+    return sb.from("external_parties").select("id,name").then(function(res){
+      if (res.error){ console.error(res.error); externalPartiesList = []; return; }
+      externalPartiesList = (res.data || []).slice().sort(function(a, b){
+        return (a.name || "").localeCompare(b.name || "", "nl", { sensitivity: "base" });
+      });
+    });
+  }
+
+  function createExternalParty(name){
+    var trimmed = name.trim();
+    if (!trimmed) return Promise.resolve(null);
+    var id = makeId();
+    return trackSave(sb.from("external_parties").insert({ id: id, name: trimmed })).then(function(){
+      return fetchExternalParties().then(function(){ return id; });
+    });
+  }
+
+  function deleteExternalPartyRow(id){
+    return trackSave(sb.from("external_parties").delete().eq("id", id)).then(function(){
+      return fetchExternalParties().then(function(){
+        state.steps.forEach(function(step){
+          step.inputs.forEach(function(inp){ if (inp.supplier && inp.supplier.externalId === id) inp.supplier.externalId = null; });
+          step.outputs.forEach(function(out){ if (out.customer && out.customer.externalId === id) out.customer.externalId = null; });
+        });
       });
     });
   }
@@ -1046,10 +1105,16 @@
               instructions: row.instructions,
               functionId: row.function_id,
               inputs: inputsRows.filter(function(i){ return i.step_id === row.id; }).map(function(i){
-                return { id: i.id, label: i.label, supplier: i.supplier_label === null ? null : { id: makeId(), label: i.supplier_label || null } };
+                return { id: i.id, label: i.label, supplier: i.supplier_label === null ? null : {
+                  id: makeId(), label: i.supplier_label || null,
+                  kind: i.supplier_kind || null, functionId: i.supplier_function_id || null, externalId: i.supplier_external_id || null
+                } };
               }),
               outputs: outputsRows.filter(function(o){ return o.step_id === row.id; }).map(function(o){
-                return { id: o.id, label: o.label, customer: o.customer_label === null ? null : { id: makeId(), label: o.customer_label || null } };
+                return { id: o.id, label: o.label, customer: o.customer_label === null ? null : {
+                  id: makeId(), label: o.customer_label || null,
+                  kind: o.customer_kind || null, functionId: o.customer_function_id || null, externalId: o.customer_external_id || null
+                } };
               })
             };
           });
@@ -1259,45 +1324,169 @@
     document.addEventListener("keydown", onKeydown);
 
     overlay.querySelector("#modal-manage-functions").addEventListener("click", function(){
-      openFunctionsModal(function(){
+      openFunctionsModal(function(newId){
+        if (newId) step.functionId = newId;
         select.innerHTML = functionOptionsHtml(step.functionId);
+        if (newId) syncStep(step);
       });
     });
 
     textarea.focus();
   }
 
-  function openFunctionsModal(onChange){
-    closeModal(document.getElementById("functions-modal-overlay"));
+  // ---------------------------------------------------------------------
+  // Herkomst/bestemming detail modal (supplier of customer): intern (een
+  // functie) of extern (een externe partij) — double-click on a supplier
+  // or customer rectangle opens it, same as a process step.
+  // ---------------------------------------------------------------------
+  function partyKindOptionsHtml(selectedKind){
+    return (
+      '<option value="">— kies —</option>' +
+      '<option value="intern"' + (selectedKind === "intern" ? " selected" : "") + '>Intern</option>' +
+      '<option value="extern"' + (selectedKind === "extern" ? " selected" : "") + '>Extern</option>'
+    );
+  }
+
+  function externalOptionsHtml(selectedId){
+    var html = '<option value="">— geen externe partij —</option>';
+    externalPartiesList.forEach(function(p){
+      html += '<option value="' + p.id + '"' + (p.id === selectedId ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>';
+    });
+    return html;
+  }
+
+  function openPartyModal(path){
+    var ref = getByPath(path);
+    if (!ref || (ref.kind !== "supplier" && ref.kind !== "customer")) return;
+    var party = ref.obj;
+    var columnLabel = ref.kind === "supplier" ? "Supplier" : "Customer";
+    closeModal(document.getElementById("party-modal-overlay"));
+
+    var overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.id = "party-modal-overlay";
+    var title = party.label ? escapeHtml(party.label) : ("Naamloze " + columnLabel.toLowerCase());
+    overlay.innerHTML =
+      '<div class="modal-panel">' +
+        '<div class="modal-header">' +
+          '<h2>Details &mdash; <em>' + title + '</em></h2>' +
+          '<button type="button" class="modal-close" id="party-modal-close" title="Sluiten">&times;</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<div class="modal-field">' +
+            '<label for="party-kind">Type</label>' +
+            '<select id="party-kind">' + partyKindOptionsHtml(party.kind) + '</select>' +
+          '</div>' +
+          '<div class="modal-field" id="party-ref-field"></div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    var kindSelect = overlay.querySelector("#party-kind");
+    var refField = overlay.querySelector("#party-ref-field");
+
+    function persist(){
+      if (ref.kind === "supplier") syncInput(ref.step, ref.input);
+      else syncOutput(ref.step, ref.output);
+    }
+
+    function renderRefField(){
+      if (party.kind === "intern"){
+        refField.innerHTML =
+          '<label for="party-ref-select">Functie</label>' +
+          '<div class="modal-function-row">' +
+            '<select id="party-ref-select">' + functionOptionsHtml(party.functionId) + '</select>' +
+            '<button type="button" class="ellipsis-btn" id="party-manage-btn" title="Functies beheren">&hellip;</button>' +
+          '</div>';
+      } else if (party.kind === "extern"){
+        refField.innerHTML =
+          '<label for="party-ref-select">Externe partij</label>' +
+          '<div class="modal-function-row">' +
+            '<select id="party-ref-select">' + externalOptionsHtml(party.externalId) + '</select>' +
+            '<button type="button" class="ellipsis-btn" id="party-manage-btn" title="Externe partijen beheren">&hellip;</button>' +
+          '</div>';
+      } else {
+        refField.innerHTML = "";
+        return;
+      }
+      refField.querySelector("#party-ref-select").addEventListener("change", function(e){
+        if (party.kind === "intern") party.functionId = e.target.value || null;
+        else party.externalId = e.target.value || null;
+        persist();
+      });
+      refField.querySelector("#party-manage-btn").addEventListener("click", function(){
+        if (party.kind === "intern"){
+          openFunctionsModal(function(newId){
+            if (newId) party.functionId = newId;
+            renderRefField();
+            if (newId) persist();
+          });
+        } else {
+          openExternalPartiesModal(function(newId){
+            if (newId) party.externalId = newId;
+            renderRefField();
+            if (newId) persist();
+          });
+        }
+      });
+    }
+    renderRefField();
+
+    kindSelect.addEventListener("change", function(){
+      party.kind = kindSelect.value || null;
+      // switching type clears the other reference so it can't point at a stale kind
+      if (party.kind !== "intern") party.functionId = null;
+      if (party.kind !== "extern") party.externalId = null;
+      renderRefField();
+      persist();
+    });
+
+    function onKeydown(e){ if (e.key === "Escape") close(); }
+    function close(){
+      closeModal(overlay);
+      document.removeEventListener("keydown", onKeydown);
+      render();
+    }
+    overlay.querySelector("#party-modal-close").addEventListener("click", close);
+    overlay.addEventListener("mousedown", function(e){ if (e.target === overlay) close(); });
+    document.addEventListener("keydown", onKeydown);
+  }
+
+  // Generic "manage this master list" dialog, shared by Functies and
+  // Externe partijen. `onChange(newId)` fires after every add (with the
+  // new item's id, so the caller can auto-select it) or delete (with null).
+  function openMasterListModal(opts){
+    closeModal(document.getElementById(opts.overlayId));
 
     var overlay = document.createElement("div");
     overlay.className = "modal-overlay modal-nested";
-    overlay.id = "functions-modal-overlay";
+    overlay.id = opts.overlayId;
     overlay.innerHTML =
       '<div class="modal-panel modal-panel-sm">' +
         '<div class="modal-header">' +
-          '<h2>Functies beheren</h2>' +
-          '<button type="button" class="modal-close" id="functions-modal-close" title="Sluiten">&times;</button>' +
+          '<h2>' + escapeHtml(opts.title) + '</h2>' +
+          '<button type="button" class="modal-close" id="' + opts.overlayId + '-close" title="Sluiten">&times;</button>' +
         '</div>' +
         '<div class="modal-body">' +
-          '<div class="function-list" id="function-list"></div>' +
+          '<div class="function-list" id="' + opts.overlayId + '-list"></div>' +
           '<div class="function-add-row">' +
-            '<input type="text" id="new-function-name" placeholder="Nieuwe functie…" autocomplete="off">' +
-            '<button type="button" id="add-function-btn">+ Toevoegen</button>' +
+            '<input type="text" id="' + opts.overlayId + '-input" placeholder="' + escapeHtml(opts.placeholder) + '" autocomplete="off">' +
+            '<button type="button" id="' + opts.overlayId + '-add">+ Toevoegen</button>' +
           '</div>' +
         '</div>' +
       '</div>';
     document.body.appendChild(overlay);
 
     function renderList(){
-      var listEl = overlay.querySelector("#function-list");
-      if (!functionsList.length){
-        listEl.innerHTML = '<p class="function-empty">Nog geen functies aangemaakt.</p>';
+      var items = opts.getList();
+      var listEl = overlay.querySelector("#" + opts.overlayId + "-list");
+      if (!items.length){
+        listEl.innerHTML = '<p class="function-empty">Nog geen items aangemaakt.</p>';
         return;
       }
-      listEl.innerHTML = functionsList.map(function(f){
-        return '<div class="function-row"><span>' + escapeHtml(f.name) + '</span>' +
-          '<button type="button" data-fn="' + f.id + '" title="Verwijderen">&times;</button></div>';
+      listEl.innerHTML = items.map(function(item){
+        return '<div class="function-row"><span>' + escapeHtml(item.name) + '</span>' +
+          '<button type="button" data-item="' + item.id + '" title="Verwijderen">&times;</button></div>';
       }).join("");
     }
     renderList();
@@ -1307,40 +1496,59 @@
       closeModal(overlay);
       document.removeEventListener("keydown", onKeydown);
     }
-    overlay.querySelector("#functions-modal-close").addEventListener("click", close);
+    overlay.querySelector("#" + opts.overlayId + "-close").addEventListener("click", close);
     overlay.addEventListener("mousedown", function(e){ if (e.target === overlay) close(); });
     document.addEventListener("keydown", onKeydown);
 
-    overlay.querySelector("#function-list").addEventListener("click", function(e){
-      var btn = e.target.closest("button[data-fn]");
+    overlay.querySelector("#" + opts.overlayId + "-list").addEventListener("click", function(e){
+      var btn = e.target.closest("button[data-item]");
       if (!btn) return;
-      deleteFunctionRow(btn.getAttribute("data-fn")).then(function(){
+      opts.deleteItem(btn.getAttribute("data-item")).then(function(){
         renderList();
-        if (onChange) onChange();
+        if (opts.onChange) opts.onChange(null);
       });
     });
 
-    var input = overlay.querySelector("#new-function-name");
+    var input = overlay.querySelector("#" + opts.overlayId + "-input");
     function addNew(){
       var name = input.value;
       if (!name.trim()) return;
-      createFunction(name).then(function(newId){
+      opts.createItem(name).then(function(newId){
         input.value = "";
         renderList();
-        if (onChange) onChange();
-        var parentSelect = document.getElementById("modal-function");
-        if (newId && parentSelect){
-          parentSelect.value = newId;
-          parentSelect.dispatchEvent(new Event("change"));
-        }
+        if (opts.onChange) opts.onChange(newId);
         input.focus();
       });
     }
-    overlay.querySelector("#add-function-btn").addEventListener("click", addNew);
+    overlay.querySelector("#" + opts.overlayId + "-add").addEventListener("click", addNew);
     input.addEventListener("keydown", function(e){
       if (e.key === "Enter"){ e.preventDefault(); addNew(); }
     });
     input.focus();
+  }
+
+  function openFunctionsModal(onChange){
+    openMasterListModal({
+      overlayId: "functions-modal-overlay",
+      title: "Functies beheren",
+      getList: function(){ return functionsList; },
+      createItem: createFunction,
+      deleteItem: deleteFunctionRow,
+      placeholder: "Nieuwe functie…",
+      onChange: onChange
+    });
+  }
+
+  function openExternalPartiesModal(onChange){
+    openMasterListModal({
+      overlayId: "external-modal-overlay",
+      title: "Externe partijen beheren",
+      getList: function(){ return externalPartiesList; },
+      createItem: createExternalParty,
+      deleteItem: deleteExternalPartyRow,
+      placeholder: "Nieuwe externe partij…",
+      onChange: onChange
+    });
   }
 
   // ---------------------------------------------------------------------
@@ -1430,13 +1638,17 @@
   });
 
   main.addEventListener("dblclick", function(e){
-    var boxEl = e.target.closest(".box-process");
+    var boxEl = e.target.closest(".box-process, .box-supplier, .box-customer");
     if (!boxEl) return;
     e.preventDefault();
     if (boxEl.getAttribute("contenteditable") === "true"){
       boxEl.blur(); // cleanly commits/ends the inline edit the two clicks just started
     }
-    openStepModal(parseInt(boxEl.getAttribute("data-path").split(".")[0], 10));
+    if (boxEl.classList.contains("box-process")){
+      openStepModal(parseInt(boxEl.getAttribute("data-path").split(".")[0], 10));
+    } else {
+      openPartyModal(boxEl.getAttribute("data-path"));
+    }
   });
 
   main.addEventListener("focusout", function(e){
@@ -1481,7 +1693,7 @@
   // Init
   // ---------------------------------------------------------------------
   function init(){
-    Promise.all([fetchProcessList(), fetchFunctions()]).then(function(){
+    Promise.all([fetchProcessList(), fetchFunctions(), fetchExternalParties()]).then(function(){
       renderSidebar();
       var params = new URLSearchParams(window.location.search);
       var wantedId = params.get("p");

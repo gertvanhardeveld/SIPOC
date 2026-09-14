@@ -86,7 +86,34 @@ functions                      -- "stamtabel": los van één proces, herbruikbaa
   id          uuid primary key
   name        text unique (hoofdletterongevoelig)
   created_at  timestamptz
+
+external_parties               -- "stamtabel" voor externe herkomst/bestemming
+  id          uuid primary key
+  name        text unique (hoofdletterongevoelig)
+  created_at  timestamptz       -- voorgevuld met Klant, Leverancier, Bank, Prospect
 ```
+
+`sipoc_inputs` en `sipoc_outputs` krijgen daarnaast elk drie extra kolommen
+voor de classificatie van de supplier, resp. customer:
+
+```
+sipoc_inputs
+  ...
+  supplier_kind          text  -- 'intern' | 'extern' | NULL
+  supplier_function_id   uuid  → functions(id)         on delete set null
+  supplier_external_id   uuid  → external_parties(id)   on delete set null
+
+sipoc_outputs
+  ...
+  customer_kind          text  -- 'intern' | 'extern' | NULL
+  customer_function_id   uuid  → functions(id)         on delete set null
+  customer_external_id   uuid  → external_parties(id)   on delete set null
+```
+
+Precies één van de twee referentiekolommen is relevant, afhankelijk van
+`*_kind` — bij het wisselen van intern ↔ extern in het formulier wordt de
+niet-relevante referentie meteen op NULL gezet, zodat er nooit een
+verweesde verwijzing naar de verkeerde stamtabel blijft hangen.
 
 Supplier en customer zijn bewust geen eigen tabellen: het zijn 1-op-1
 eigenschappen van precies één input, resp. output (zoals in de tool
@@ -173,6 +200,27 @@ naamwijziging van het proces bovenaan de pagina herbouwde per ongeluk ook
 het hele bord, wat een gelijktijdige klik op een processtap kon laten
 verdwijnen — is opgelost door die twee volledig los van elkaar te
 renderen.
+
+## 5b. Herkomst en bestemming: intern of extern
+
+Hetzelfde dubbelklik-patroon geldt voor een ingevulde **supplier**-
+(herkomst) en **customer**-rechthoek (bestemming) — een enkele klik blijft
+gewoon het label van dat vak hernoemen. Het formulier vraagt:
+
+- **Type**: Intern of Extern.
+- Bij **Intern**: een keuzelijst **Functie**, die dezelfde `functions`-
+  stamtabel gebruikt als het stapformulier (deel 5a) — inclusief dezelfde
+  **···**-beheerknop.
+- Bij **Extern**: een keuzelijst **Externe partij**, uit de nieuwe
+  `external_parties`-stamtabel (voorgevuld met Klant, Leverancier, Bank,
+  Prospect), eveneens met een **···**-beheerknop om zelf waarden toe te
+  voegen of te verwijderen.
+
+De twee beheerdialogen (Functies / Externe partijen) delen dezelfde
+generieke modal-code (`openMasterListModal`) — enige verschil is welke
+stamtabel, labels en placeholder-tekst ze gebruiken. Een net aangemaakte
+waarde wordt, net als bij het stapformulier, meteen geselecteerd voor het
+vak waar je mee bezig was.
 
 ## 6. Toegang en beveiliging — bewuste afweging
 
