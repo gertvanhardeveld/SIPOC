@@ -15,3 +15,9 @@ Een werkende, interactieve SIPOC-tool (Suppliers – Input – Processtap – Ou
 ## Techniek
 
 De layout is opgebouwd met CSS Grid: vijf kolommen (Suppliers, Input, Processtap, Output, Customer) met dunne kolommen ertussen voor de pijlen. Bij elke wijziging (toevoegen/verwijderen) wordt de grid opnieuw gerenderd op basis van de state in het geheugen, zodat alle onderdelen automatisch netjes opschuiven. Er zijn bewust nog geen kleurcoderingen toegepast.
+
+Het volledige datamodel, het authenticatie-/autorisatiemodel en de rest van het ontwerp staan uitgeschreven in [SPEC.md](SPEC.md).
+
+## Nieuwe front-end (in ontwikkeling)
+
+In de map [`app/`](app/) wordt een nieuwe, "echte" front-end gebouwd (React + TypeScript + Vite + Tailwind), die uiteindelijk deze losse `index.html` gaat vervangen. Tot die overstap gemaakt is, blijft dit bestand het live product. Zie [`app/README.md`](app/README.md) voor hoe je die lokaal draait.

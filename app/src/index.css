@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens, carried over from the original index.html so the new
+ * React app doesn't suddenly look like a different product. Tailwind v4
+ * turns every --color-* var below into utility classes automatically
+ * (bg-accent, text-grey-text, border-border, ...).
+ */
+@theme {
+  --color-bg: #f4f5f7;
+  --color-panel: #ffffff;
+  --color-grey-box: #e7e8ea;
+  --color-grey-box-border: #d3d5d9;
+  --color-grey-text: #8a8d93;
+  --color-dark-text: #24262b;
+  --color-header-text: #2f6fb0;
+  --color-process-border: #24262b;
+  --color-line: #9a9da3;
+  --color-guide: #d7d9dd;
+  --color-accent: #2f6fb0;
+  --color-accent-bg: #eaf2fb;
+  --color-danger: #c0392b;
+  --color-danger-bg: #fbeceb;
+  --color-border: #e2e4e8;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+}
+
+body {
+  @apply bg-bg text-dark-text font-sans;
+  margin: 0;
+}
