@@ -53,3 +53,72 @@ export async function deleteProcess(id: string): Promise<void> {
   const { error } = await supabase.from("processes").delete().eq("id", id);
   if (error) throw error;
 }
+
+export interface ProcessSaveFields {
+  name: string | null;
+  description: string | null;
+  version: string | null;
+  goal_description: string | null;
+  owner_id: string | null;
+}
+
+export async function saveProcess(id: string, fields: ProcessSaveFields): Promise<void> {
+  const { error } = await supabase
+    .from("processes")
+    .upsert({ id, ...fields, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
+
+export interface ProcessEditor {
+  user_id: string;
+  email: string;
+}
+
+/** Who (besides the owner) may edit this process — distinct from the
+ * business-level "proceseigenaar" field. Only the owner (created_by)
+ * manages this list; `profiles` exists so a user can be looked up by
+ * e-mail without querying auth.users directly (the client can't). */
+export async function fetchProcessEditors(processId: string): Promise<ProcessEditor[]> {
+  const { data, error } = await supabase
+    .from("process_editors")
+    .select("user_id")
+    .eq("process_id", processId);
+  if (error) throw error;
+  const userIds = (data ?? []).map((r) => r.user_id as string);
+  if (!userIds.length) return [];
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id,email")
+    .in("id", userIds);
+  if (profilesError) throw profilesError;
+
+  return userIds.map((uid) => {
+    const profile = (profiles ?? []).find((p) => p.id === uid);
+    return { user_id: uid, email: profile ? profile.email : uid };
+  });
+}
+
+export type AddEditorResult = "ok" | "not_found" | "empty";
+
+export async function addProcessEditorByEmail(processId: string, email: string): Promise<AddEditorResult> {
+  const trimmed = email.trim();
+  if (!trimmed) return "empty";
+  const { data, error } = await supabase.from("profiles").select("id").ilike("email", trimmed);
+  if (error) throw error;
+  if (!data || !data.length) return "not_found";
+  const { error: insertError } = await supabase
+    .from("process_editors")
+    .insert({ process_id: processId, user_id: data[0].id });
+  if (insertError) throw insertError;
+  return "ok";
+}
+
+export async function removeProcessEditor(processId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from("process_editors")
+    .delete()
+    .eq("process_id", processId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}

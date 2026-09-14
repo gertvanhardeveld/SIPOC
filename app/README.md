@@ -46,7 +46,7 @@ Nog in opbouw. Voortgang volgt de fases uit de projectplanning:
 1. ✅ Scaffolding — Vite/React/TS/Tailwind, Supabase-verbinding, routing en server-state werkend bevestigd.
 2. ✅ Design overzetten — designtokens (`src/index.css`) worden inmiddels ook echt gebruikt door de schermen uit fase 3.
 3. ✅ Login + omhulsel — magic-link inlogscherm, zijbalk met zoekbare alfabetische procesboom, routing per proces (`/proces/:id`), account-menu (e-mail + uitloggen), alleen-lezen-badge op basis van eigenaar/bewerker-rechten.
-4. ⬜ Het SIPOC-bord (kern)
-5. ⬜ Stamtabellen-beheer
-6. ⬜ Rechten in de UI
+4. ✅ Het SIPOC-bord (kern) — het vijf-kolommen-bord met verbindingslijnen (`src/components/board/`), inline hernoemen (klik) + detailformulieren (dubbelklik): processtap (werkinstructie + functie), herkomst/bestemming (intern/extern), input/output (omschrijving + communicatiesoort) en het procesformulier (omschrijving, versie, doel, proceseigenaar, bewerkers-beheer voor de eigenaar). Board-CSS 1-op-1 overgenomen uit `index.html` (`src/styles/board.css`) voor exact dezelfde layout.
+5. ✅ Stamtabellen-beheer — de vier gedeelde lijsten (functies, externe partijen, communicatiesoorten, proceseigenaren) via één herbruikbare `MasterListModal` + `useMasterTable`-hook (TanStack Query), bereikbaar via de "…"-knop naast elk dropdown-veld.
+6. 🟡 Rechten in de UI — alleen-lezen-modus (verbergen van alle bewerkingsknoppen, badge) staat al sinds fase 3/4; wat nog ontbreekt is een eigen scherm/overzicht los van het bord.
 7. ⬜ Testen + omschakelen
