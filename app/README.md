@@ -43,9 +43,9 @@ Security (zie [SPEC.md](../SPEC.md), deel 6).
 
 Nog in opbouw. Voortgang volgt de fases uit de projectplanning:
 
-1. ✅ Scaffolding (dit setje) — Vite/React/TS/Tailwind, Supabase-verbinding, routing en server-state werkend bevestigd.
-2. ⬜ Design overzetten
-3. ⬜ Login + omhulsel (zijbalk, routing per proces)
+1. ✅ Scaffolding — Vite/React/TS/Tailwind, Supabase-verbinding, routing en server-state werkend bevestigd.
+2. ✅ Design overzetten — designtokens (`src/index.css`) worden inmiddels ook echt gebruikt door de schermen uit fase 3.
+3. ✅ Login + omhulsel — magic-link inlogscherm, zijbalk met zoekbare alfabetische procesboom, routing per proces (`/proces/:id`), account-menu (e-mail + uitloggen), alleen-lezen-badge op basis van eigenaar/bewerker-rechten.
 4. ⬜ Het SIPOC-bord (kern)
 5. ⬜ Stamtabellen-beheer
 6. ⬜ Rechten in de UI
