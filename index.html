@@ -45,6 +45,7 @@
     min-height:100vh;
     align-items:stretch;
   }
+  #app[hidden]{ display: none; }
   #sidebar{
     flex: 0 0 260px;
     width: 260px;
@@ -70,6 +71,105 @@
     font-size: 11.5px;
     color: var(--grey-text);
     margin: 0 0 4px;
+  }
+  #account-row{
+    font-size: 11.5px;
+    color: var(--grey-text);
+    margin: 0 0 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  #account-row button{
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 11.5px;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .readonly-notice{
+    font-size: 11px;
+    color: var(--danger);
+    background: var(--danger-bg);
+    border-radius: 6px;
+    padding: 4px 8px;
+    display: inline-block;
+    margin-left: 8px;
+  }
+
+  /* ---------- Login screen ---------- */
+  #login-screen{
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #login-screen[hidden]{ display: none; }
+  .login-card{
+    width: 100%;
+    max-width: 340px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 24px;
+    text-align: center;
+  }
+  .login-card h1{
+    font-size: 18px;
+    margin: 0 0 6px;
+  }
+  .login-sub{
+    font-size: 12.5px;
+    color: var(--grey-text);
+    margin: 0 0 18px;
+  }
+  .login-card label{
+    display: block;
+    text-align: left;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--grey-text);
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    margin-bottom: 6px;
+  }
+  .login-card input[type="email"]{
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--grey-box-border);
+    font-family: inherit;
+    font-size: 13.5px;
+    outline: none;
+    margin-bottom: 12px;
+  }
+  .login-card input[type="email"]:focus{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+  }
+  .login-card button{
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .login-card button:hover{ opacity: .9; }
+  #login-status{
+    font-size: 12px;
+    color: var(--grey-text);
+    margin: 12px 0 0;
+    min-height: 16px;
   }
   #search{
     width: 100%;
@@ -345,6 +445,11 @@
   .box-supplier, .box-customer{
     cursor: pointer; /* opens the intern/extern form, no longer free text */
   }
+  /* Read-only mode: viewer without edit rights on this process — hide every
+     add/remove control and make clear the boxes aren't clickable */
+  .readonly-board .addbtn, .readonly-board .minus{ display: none; }
+  .readonly-board .box{ cursor: default; }
+  #process-header.readonly-header .box-process-name{ cursor: default; }
   .process-wrap{
     position: relative;
     width: 100%;
@@ -630,9 +735,21 @@
 </head>
 <body>
 
-<div id="app">
+<div id="login-screen">
+  <div class="login-card">
+    <h1>SIPOC</h1>
+    <p class="login-sub">Log in om processen te bekijken en te bewerken.</p>
+    <label for="login-email">E-mailadres</label>
+    <input id="login-email" type="email" placeholder="jij@voorbeeld.nl" autocomplete="email">
+    <button id="login-submit" type="button">Stuur inloglink</button>
+    <p id="login-status"></p>
+  </div>
+</div>
+
+<div id="app" hidden>
   <aside id="sidebar">
     <h1>SIPOC</h1>
+    <div id="account-row"></div>
     <p class="sidebar-sub">Alle processen</p>
     <input id="search" type="search" placeholder="Zoek proces…" autocomplete="off">
     <button id="new-process-btn" type="button">+ Nieuw proces</button>
@@ -659,6 +776,8 @@
   var SUPABASE_KEY = "sb_publishable_cN_JXrTeW3lEV5ObhICFpw_GQX9deID";
 
   if (!window.supabase || !window.supabase.createClient){
+    document.getElementById("login-screen").hidden = true;
+    document.getElementById("app").hidden = false;
     document.getElementById("app").innerHTML =
       '<div style="padding:60px 24px;text-align:center;max-width:420px;margin:0 auto;">' +
         '<p style="font-weight:700;color:#c0392b;margin-bottom:8px;">Kon de database-bibliotheek niet laden</p>' +
@@ -667,6 +786,10 @@
     return;
   }
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  var currentUser = null;
+  var canEditCurrentProcess = true;
+  var appInitialized = false;
 
   var COLS = {
     supplier: "Supplier",
@@ -692,7 +815,7 @@
 
   // Current SIPOC being edited
   var state = {
-    processId: null, processName: null,
+    processId: null, processName: null, processCreatedBy: null,
     processDescription: null, processVersion: null, processGoal: null, processOwnerId: null,
     steps: [ makeStep() ]
   };
@@ -890,15 +1013,19 @@
     state.steps.forEach(function(step, idx){
       html += renderStepBlock(step, idx);
     });
-    document.getElementById("board").innerHTML = html;
+    var boardEl = document.getElementById("board");
+    boardEl.innerHTML = html;
+    boardEl.classList.toggle("readonly-board", !canEditCurrentProcess);
   }
 
   function renderProcessHeader(){
     var wrap = document.getElementById("process-header");
+    wrap.classList.toggle("readonly-header", !canEditCurrentProcess);
     wrap.innerHTML =
       '<div class="process-name-row">' +
         box({ label: state.processName, placeholder: "Procesnaam", path: "process.name", extraClass: "box-process-name" }) +
         '<span id="sync-status" class="sync-status idle">Opgeslagen</span>' +
+        (canEditCurrentProcess ? '' : '<span class="readonly-notice">Alleen-lezen</span>') +
       '</div>';
   }
 
@@ -941,10 +1068,11 @@
       groups[letter].forEach(function(p){
         var name = p.name ? escapeHtml(p.name) : '<span class="tree-placeholder">Procesnaam</span>';
         var activeClass = p.id === state.processId ? " active" : "";
+        var canDelete = currentUser && (p.created_by === null || p.created_by === currentUser.id);
         html +=
           '<div class="tree-item' + activeClass + '">' +
             '<button class="tree-name" data-action="selectProcess" data-process="' + p.id + '">' + name + '</button>' +
-            '<button class="tree-delete" data-action="deleteProcess" data-process="' + p.id + '" title="Proces verwijderen">&times;</button>' +
+            (canDelete ? '<button class="tree-delete" data-action="deleteProcess" data-process="' + p.id + '" title="Proces verwijderen">&times;</button>' : '') +
           '</div>';
       });
       html += "</div>";
@@ -1184,9 +1312,17 @@
   // Loading / switching / creating / deleting processes
   // ---------------------------------------------------------------------
   function fetchProcessList(){
-    return sb.from("processes").select("id,name").then(function(res){
+    return sb.from("processes").select("id,name,created_by").then(function(res){
       if (res.error){ console.error(res.error); processList = []; return; }
       processList = res.data || [];
+    });
+  }
+
+  function checkCanEdit(proc){
+    if (!currentUser) return Promise.resolve(false);
+    if (proc.created_by === null || proc.created_by === currentUser.id) return Promise.resolve(true);
+    return sb.from("process_editors").select("user_id").eq("process_id", proc.id).eq("user_id", currentUser.id).then(function(res){
+      return !!(res.data && res.data.length);
     });
   }
 
@@ -1226,22 +1362,27 @@
           var seededDefault = false;
           if (steps.length === 0){ steps = [ makeStep() ]; seededDefault = true; }
 
-          state.processId = proc.id;
-          state.processName = proc.name;
-          state.processDescription = proc.description;
-          state.processVersion = proc.version;
-          state.processGoal = proc.goal_description;
-          state.processOwnerId = proc.owner_id;
-          state.steps = steps;
+          return checkCanEdit(proc).then(function(can){
+            canEditCurrentProcess = can;
 
-          var url = new URL(window.location.href);
-          url.searchParams.set("p", proc.id);
-          window.history.replaceState(null, "", url);
+            state.processId = proc.id;
+            state.processName = proc.name;
+            state.processDescription = proc.description;
+            state.processVersion = proc.version;
+            state.processGoal = proc.goal_description;
+            state.processOwnerId = proc.owner_id;
+            state.processCreatedBy = proc.created_by;
+            state.steps = steps;
 
-          renderAll();
-          setSyncStatus("idle");
-          if (seededDefault) syncStepsOrder();
-          return true;
+            var url = new URL(window.location.href);
+            url.searchParams.set("p", proc.id);
+            window.history.replaceState(null, "", url);
+
+            renderAll();
+            setSyncStatus("idle");
+            if (seededDefault) syncStepsOrder();
+            return true;
+          });
         });
       });
     });
@@ -1255,7 +1396,7 @@
   function createNewProcess(){
     var id = makeId();
     var stepId = makeId();
-    return trackSave(sb.from("processes").insert({ id: id, name: null, version: "0.1" }))
+    return trackSave(sb.from("processes").insert({ id: id, name: null, version: "0.1", created_by: currentUser.id }))
       .then(function(){ return trackSave(sb.from("sipoc_steps").insert({ id: stepId, process_id: id, position: 0, label: null })); })
       .then(fetchProcessList)
       .then(function(){ return loadProcess(id); })
@@ -1797,8 +1938,46 @@
     });
   }
 
+  // ---------------------------------------------------------------------
+  // Wie mag dit proces bewerken (los van de "proceseigenaar" hierboven,
+  // wat een business-veld is — dit hier is echte toegang tot de app).
+  // Alleen de aanmaker (created_by) beheert deze lijst; profiles bestaat
+  // zodat je iemand op e-mailadres kunt opzoeken zonder auth.users direct
+  // te bevragen (dat mag de client niet).
+  // ---------------------------------------------------------------------
+  function fetchProcessEditors(processId){
+    return sb.from("process_editors").select("user_id").eq("process_id", processId).then(function(res){
+      var userIds = (res.data || []).map(function(r){ return r.user_id; });
+      if (!userIds.length) return [];
+      return sb.from("profiles").select("id,email").in("id", userIds).then(function(profRes){
+        var profiles = profRes.data || [];
+        return userIds.map(function(uid){
+          var p = profiles.filter(function(pr){ return pr.id === uid; })[0];
+          return { user_id: uid, email: p ? p.email : uid };
+        });
+      });
+    });
+  }
+
+  function addProcessEditorByEmail(processId, email){
+    var trimmed = email.trim();
+    if (!trimmed) return Promise.resolve("empty");
+    return sb.from("profiles").select("id").ilike("email", trimmed).then(function(res){
+      if (!res.data || !res.data.length) return "not_found";
+      return trackSave(sb.from("process_editors").insert({ process_id: processId, user_id: res.data[0].id })).then(function(){
+        return "ok";
+      });
+    });
+  }
+
+  function removeProcessEditor(processId, userId){
+    return trackSave(sb.from("process_editors").delete().eq("process_id", processId).eq("user_id", userId));
+  }
+
   function openProcessModal(){
     closeModal(document.getElementById("process-modal-overlay"));
+
+    var isOwner = state.processCreatedBy === null || state.processCreatedBy === currentUser.id;
 
     var overlay = document.createElement("div");
     overlay.className = "modal-overlay";
@@ -1830,9 +2009,60 @@
               '<button type="button" class="ellipsis-btn" id="process-owner-manage" title="Proceseigenaren beheren">&hellip;</button>' +
             '</div>' +
           '</div>' +
+          (isOwner ?
+            '<div class="modal-field">' +
+              '<label>Bewerkers (mogen dit proces ook aanpassen)</label>' +
+              '<div class="function-list" id="editors-list"><p class="function-empty">Laden…</p></div>' +
+              '<div class="function-add-row">' +
+                '<input type="email" id="new-editor-email" placeholder="e-mailadres…" autocomplete="off">' +
+                '<button type="button" id="add-editor-btn">+ Toevoegen</button>' +
+              '</div>' +
+            '</div>'
+          : '') +
         '</div>' +
       '</div>';
     document.body.appendChild(overlay);
+
+    if (isOwner){
+      var editorsListEl = overlay.querySelector("#editors-list");
+      var renderEditors = function(){
+        fetchProcessEditors(state.processId).then(function(editors){
+          if (!editors.length){
+            editorsListEl.innerHTML = '<p class="function-empty">Nog geen bewerkers toegevoegd.</p>';
+            return;
+          }
+          editorsListEl.innerHTML = editors.map(function(ed){
+            return '<div class="function-row"><span>' + escapeHtml(ed.email) + '</span>' +
+              '<button type="button" data-uid="' + ed.user_id + '" title="Verwijderen">&times;</button></div>';
+          }).join("");
+        });
+      };
+      renderEditors();
+
+      editorsListEl.addEventListener("click", function(e){
+        var btn = e.target.closest("button[data-uid]");
+        if (!btn) return;
+        removeProcessEditor(state.processId, btn.getAttribute("data-uid")).then(renderEditors);
+      });
+
+      var newEditorInput = overlay.querySelector("#new-editor-email");
+      var addEditor = function(){
+        var email = newEditorInput.value;
+        if (!email.trim()) return;
+        addProcessEditorByEmail(state.processId, email).then(function(result){
+          if (result === "not_found"){
+            window.alert("Geen account gevonden met dit e-mailadres. Deze persoon moet eerst minstens één keer inloggen.");
+            return;
+          }
+          newEditorInput.value = "";
+          renderEditors();
+        });
+      };
+      overlay.querySelector("#add-editor-btn").addEventListener("click", addEditor);
+      newEditorInput.addEventListener("keydown", function(e){
+        if (e.key === "Enter"){ e.preventDefault(); addEditor(); }
+      });
+    }
 
     var descEl = overlay.querySelector("#process-desc");
     var versionEl = overlay.querySelector("#process-version");
@@ -1897,6 +2127,8 @@
   var main = document.getElementById("main");
 
   main.addEventListener("click", function(e){
+    if (!canEditCurrentProcess) return; // read-only viewer: nothing in the board/header is clickable
+
     var partyBoxEl = e.target.closest(".box-supplier, .box-customer");
     if (partyBoxEl){
       openPartyModal(partyBoxEl.getAttribute("data-path"));
@@ -1983,6 +2215,8 @@
   });
 
   main.addEventListener("dblclick", function(e){
+    if (!canEditCurrentProcess) return; // read-only viewer: no forms open here either
+
     // Supplier/customer rectangles now open their form on a single click
     // (see the click handler above) — a dblclick there just fires that
     // same single-click handling twice, which is harmless. Process-step,
@@ -2061,7 +2295,55 @@
     });
   }
 
-  init();
+  // ---------------------------------------------------------------------
+  // Auth: magic-link login gate
+  // ---------------------------------------------------------------------
+  function renderAccountRow(){
+    var el = document.getElementById("account-row");
+    if (!el || !currentUser) return;
+    el.innerHTML = escapeHtml(currentUser.email) + '<br><button type="button" id="logout-btn">Uitloggen</button>';
+    el.querySelector("#logout-btn").addEventListener("click", function(){ sb.auth.signOut(); });
+  }
+
+  function showApp(){
+    document.getElementById("login-screen").hidden = true;
+    document.getElementById("app").hidden = false;
+  }
+  function showLogin(){
+    document.getElementById("app").hidden = true;
+    document.getElementById("login-screen").hidden = false;
+  }
+
+  function sendMagicLink(){
+    var emailEl = document.getElementById("login-email");
+    var statusEl = document.getElementById("login-status");
+    var email = emailEl.value.trim();
+    if (!email){ statusEl.textContent = "Vul een e-mailadres in."; return; }
+    statusEl.textContent = "Bezig met versturen…";
+    var redirectTo = window.location.origin + window.location.pathname;
+    sb.auth.signInWithOtp({ email: email, options: { emailRedirectTo: redirectTo } }).then(function(res){
+      statusEl.textContent = res.error ? ("Mislukt: " + res.error.message) : "Check je e-mail voor de inloglink!";
+    });
+  }
+  document.getElementById("login-submit").addEventListener("click", sendMagicLink);
+  document.getElementById("login-email").addEventListener("keydown", function(e){
+    if (e.key === "Enter"){ e.preventDefault(); sendMagicLink(); }
+  });
+
+  sb.auth.onAuthStateChange(function(event, session){
+    currentUser = session ? session.user : null;
+    if (currentUser){
+      showApp();
+      renderAccountRow();
+      if (!appInitialized){
+        appInitialized = true;
+        init();
+      }
+    } else {
+      appInitialized = false;
+      showLogin();
+    }
+  });
 })();
 </script>
 

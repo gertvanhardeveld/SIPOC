@@ -60,8 +60,20 @@ processes
   version             text        -- start standaard op '0.1'
   goal_description    text        -- vrije, meerregelige doelomschrijving
   owner_id             uuid  → process_owners(id)  on delete set null
+  created_by           uuid  → auth.users(id)  on delete set null  -- wie mag bewerken (zie 6b)
   created_at          timestamptz
   updated_at          timestamptz
+
+profiles                        -- spiegelt auth.users, zie 6a
+  id          uuid primary key → auth.users(id) on delete cascade
+  email       text
+  created_at  timestamptz
+
+process_editors                 -- wie mag dit specifieke proces bewerken, naast created_by
+  process_id  uuid → processes(id)   on delete cascade
+  user_id     uuid → auth.users(id)  on delete cascade
+  created_at  timestamptz
+  primary key (process_id, user_id)
 
 sipoc_steps
   id            uuid primary key
@@ -138,10 +150,11 @@ zelf), dus een kolom op dezelfde rij volstaat en houdt joins simpel.
 `functions` is dat wél, omdat het bewust gedeeld/herbruikbaar moet zijn
 over alle processen heen (zie deel 5a).
 
-**RLS (Row Level Security)**: staat aan op alle vijf tabellen, met een
-policy die de `anon`-rol (dus: iedereen met de link, geen login) volledig
-lees- en schrijfrecht geeft. Dat is een bewuste keuze voor een interne
-tool zonder authenticatie — zie deel 6 hieronder voor de afweging.
+**RLS (Row Level Security)**: staat aan op alle vijf tabellen. Sinds de
+introductie van authenticatie (deel 6) gelden de policies alleen nog
+voor de rol `authenticated` (ingelogd); `anon` heeft nergens meer
+toegang. Zie deel 6 voor het volledige authenticatie- en
+autorisatiemodel.
 
 ## 4. Hoe de app en de database synchroon lopen
 
@@ -292,27 +305,91 @@ Deze vier velden leven direct op de `processes`-rij zelf (`description`,
 `on delete set null`) en worden, net als de procesnaam, in één upsert
 (`syncProcess`) samen opgeslagen.
 
-## 6. Toegang en beveiliging — bewuste afweging
+## 6. Toegang en beveiliging
 
-Deze versie heeft **geen inlog**: wie de link naar de pagina heeft, kan
-alle processen zien, bewerken en verwijderen. Dat is expliciet gekozen
-om snel te kunnen starten. Consequenties om in het achterhoofd te
-houden:
+### 6a. Authenticatie: magic link
 
-- De Supabase-URL en de `publishable`/`anon`-sleutel staan gewoon
-  zichtbaar in `index.html` (zoals bij elke client-side Supabase-app
-  zonder eigen backend) — dat is op zichzelf geen lek, zólang de
-  RLS-policies kloppen, want die sleutel geeft alleen toegang binnen wat
-  die policies toestaan.
-- Omdat de policies *iedereen* volledig schrijfrecht geven, kan in
-  principe iedereen met de link ook alles verwijderen. Voor een grotere
-  groep gebruikers of gevoeligere content is simpele Supabase Auth
-  (magic link/e-mail) een logische volgende stap — dat vervangt dan de
-  `anon`-policies door policies die op een ingelogde gebruiker filteren.
+Inloggen gaat via een **magic link** (Supabase Auth, passwordless):
+e-mailadres invullen → Supabase stuurt een inloglink → klikken logt in.
+Geen wachtwoorden, dus ook geen "wachtwoord vergeten"-flow nodig.
+Registratie staat open: iedereen met een e-mailadres kan zelf inloggen —
+er is (nog) geen uitnodig- of domeinbeperking.
+
+- `index.html` toont een inlogscherm (`#login-screen`) totdat er een
+  sessie is; de rest van de app (`#app`) blijft tot dan verborgen.
+- `sb.auth.onAuthStateChange(...)` bepaalt welk scherm zichtbaar is en
+  start de eigenlijke app (`init()`) pas zodra er een sessie is — dat
+  gebeurt maar één keer per sessie (`appInitialized`-vlag), en wordt
+  weer teruggezet bij uitloggen zodat een volgende inlog (evt. als
+  andere gebruiker, op hetzelfde toestel) alles opnieuw ophaalt.
+- Bij het klikken op de magic link in de e-mail parseert supabase-js
+  automatisch het token uit de URL (`detectSessionInUrl`, standaard aan)
+  — daar hoefde geen aparte callback-pagina/route voor gebouwd te worden.
+- **`profiles`**-tabel: spiegelt `auth.users` (die de client nooit
+  rechtstreeks mag bevragen) met alleen `id` en `email`, automatisch
+  gevuld via een trigger (`handle_new_user`) bij het aanmaken van een
+  account. Nodig om iemand op e-mailadres te kunnen opzoeken (bv. als
+  bewerker toevoegen) zonder `auth.users` bloot te leggen.
+
+### 6b. Autorisatie: wie mag wat
+
+Simpel model, bewust gekozen als eerste stap (zie ook eerdere sectie
+"Toegang en beveiliging"): **iedereen die ingelogd is mag alle processen
+zien**; bewerken mag alleen de **eigenaar** (`processes.created_by`,
+gezet bij het aanmaken) of iemand op de **bewerkerslijst**
+(`process_editors`).
+
+- De eigenaar beheert die bewerkerslijst zelf, in het procesformulier
+  (deel 5d) — door een e-mailadres in te typen. Dat moet horen bij een
+  account dat al minstens één keer heeft ingelogd (anders staat er geen
+  rij in `profiles` om op te zoeken); zo niet, dan volgt een duidelijke
+  melding.
+- **Bestaande processen van vóór er accounts waren** (`created_by is
+  null`) blijven bewerkbaar voor iedereen die ingelogd is, tot iemand ze
+  "claimt" — een bewuste overgangsregel om niemand buiten te sluiten van
+  eigen, al bestaand werk.
+- De front-end **respecteert dit ook zichtbaar**, niet alleen
+  server-side: kan een ingelogde gebruiker een proces niet bewerken, dan
+  toont het bord een "Alleen-lezen"-label, verdwijnen alle +/×-knoppen,
+  en doet klikken op een rechthoek niets (in plaats van een wijziging te
+  laten "lukken" die de database vervolgens alsnog weigert). Dat wordt
+  bepaald door `canEditCurrentProcess`, berekend bij het laden van een
+  proces (`checkCanEdit`).
+- Herbruikbare RLS-check: `public.can_edit_process(pid)` (`security
+  definer`, gebruikt eigenaar/bewerkerslijst/`created_by is null`) —
+  hergebruikt in de policies van `processes`, `sipoc_steps`,
+  `sipoc_inputs` en `sipoc_outputs` (die laatste twee via een join op de
+  bijbehorende stap). De stamtabellen (functies, externe partijen,
+  communicatiesoorten, proceseigenaren) blijven gedeeld vocabulaire voor
+  iedereen die ingelogd is — geen per-proces afscherming daarop.
+
+### 6c. Overige beveiligingskeuzes
+
+- De Supabase-URL en de `publishable`-sleutel staan gewoon zichtbaar in
+  `index.html` (normaal voor een client-side Supabase-app) — dat is op
+  zichzelf geen lek zolang de RLS-policies kloppen, want die sleutel
+  geeft alleen toegang binnen wat die policies toestaan.
+- De `anon`-rol (niet ingelogd) heeft nu **nergens meer** lees- of
+  schrijftoegang toe — voorheen (vóór authenticatie) was dat bewust wel
+  zo; zie de git-historie voor die eerdere afweging.
+- `public.can_edit_process` en de trigger-functie `handle_new_user` zijn
+  `security definer` — Supabase's linter meldt beide standaard als
+  "rechtstreeks aanroepbaar via de publieke API". `handle_new_user` is
+  daarom volledig afgesloten (triggers hebben geen eigen execute-recht
+  nodig om te vuren). `can_edit_process` moet wél uitvoerbaar blijven
+  voor de rol `authenticated`, omdat de RLS-policies 'm intern aanroepen
+  met de rechten van de aanroepende rol — alleen `anon` is daar
+  afgesloten. De resterende linter-melding ("authenticated kan de
+  functie rechtstreeks aanroepen") is een bewust geaccepteerde,
+  onvermijdelijke afweging: de functie geeft toch nooit meer prijs dan
+  een ja/nee op "mag ik dit proces bewerken", over data die al open
+  leesbaar is.
 
 ## 7. Bewust (nog) buiten scope
 
-- Geen authenticatie/gebruikersbeheer (zie deel 6).
+- Geen fijnmaziger rollenmodel dan eigenaar/bewerker/lezer (zie deel 6b)
+  — geen teams/organisaties, geen aparte "viewer expliciet uitnodigen".
+- Geen domein- of uitnodigingsbeperking op wie een account mag maken.
 - Geen export (PNG/PDF/afbeelding) van een SIPOC.
 - Geen kleurcodering per kolom of onderdeel.
 - Geen drag-and-drop herordenen — herordenen kan wel indirect door
