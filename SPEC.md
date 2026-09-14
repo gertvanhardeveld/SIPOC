@@ -384,6 +384,21 @@ gezet bij het aanmaken) of iemand op de **bewerkerslijst**
   onvermijdelijke afweging: de functie geeft toch nooit meer prijs dan
   een ja/nee op "mag ik dit proces bewerken", over data die al open
   leesbaar is.
+- **Openstaand punt: e-mailverzending loopt nu via Supabase's ingebouwde
+  mailer**, die uitdrukkelijk bedoeld is om te testen en daarom een zeer
+  laag rate-limit heeft (een paar e-mails per uur, projectbreed, gedeeld
+  over signup/magic-link/password-recovery samen). Geconstateerd op
+  2026-09-14: na een paar achtereenvolgende inlogpogingen (oude en
+  nieuwe front-end kort na elkaar getest) sloeg de OTP-aanvraag om naar
+  `429 over_email_send_rate_limit` — te zien in de auth-logs
+  (`error_code: over_email_send_rate_limit`, pad `/otp`). Dit is geen
+  bug in de app, maar een hard limiet dat met echte (meerdere)
+  gebruikers gegarandeerd opnieuw geraakt wordt. **Vereist vóór
+  productie-/multi-user-gebruik:** een eigen SMTP-provider koppelen via
+  Supabase-dashboard → Project Settings → Authentication → SMTP
+  Settings (bijv. Resend of Postmark, beide met een gratis tier die ruim
+  voldoende is voor dit schaalniveau). Dit is een dashboard-instelling,
+  niet iets dat via migraties/code geregeld wordt.
 
 ## 7. Bewust (nog) buiten scope
 
