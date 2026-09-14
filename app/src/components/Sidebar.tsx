@@ -1,5 +1,5 @@
 import { useMemo, useState, type MouseEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../lib/AuthContext";
 import { supabase } from "../lib/supabaseClient";
@@ -48,6 +48,15 @@ export default function Sidebar() {
     <aside className="flex h-screen w-72 shrink-0 flex-col border-r border-border bg-panel p-4">
       <h1 className="text-lg font-bold text-header-text">SIPOC</h1>
       <AccountRow />
+
+      <NavLink
+        to="/toegang"
+        className={({ isActive }) =>
+          `mt-3 self-start text-[12.5px] font-medium ${isActive ? "text-accent" : "text-grey-text hover:text-accent"}`
+        }
+      >
+        Toegang beheren
+      </NavLink>
 
       <p className="mt-4 mb-1 text-[11px] font-semibold uppercase tracking-wide text-grey-text">
         Alle processen

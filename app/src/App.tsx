@@ -4,6 +4,7 @@ import LoginPage from "./pages/LoginPage";
 import Sidebar from "./components/Sidebar";
 import EmptyState from "./pages/EmptyState";
 import ProcessPage from "./pages/ProcessPage";
+import AccessPage from "./pages/AccessPage";
 
 export default function App() {
   const { user, initializing } = useAuth();
@@ -27,6 +28,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<EmptyState />} />
           <Route path="/proces/:id" element={<ProcessPage />} />
+          <Route path="/toegang" element={<AccessPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

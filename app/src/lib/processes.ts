@@ -122,3 +122,13 @@ export async function removeProcessEditor(processId: string, userId: string): Pr
     .eq("user_id", userId);
   if (error) throw error;
 }
+
+/** Every process id the given user is on the editors list for — used by
+ * the access overview (/toegang) to tell "Bewerker" apart from
+ * "Alleen-lezen" across the whole process list in one query, instead of
+ * checking each process individually. */
+export async function fetchEditableProcessIds(userId: string): Promise<string[]> {
+  const { data, error } = await supabase.from("process_editors").select("process_id").eq("user_id", userId);
+  if (error) throw error;
+  return (data ?? []).map((r) => r.process_id as string);
+}
