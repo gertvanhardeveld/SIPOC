@@ -203,9 +203,11 @@ renderen.
 
 ## 5b. Herkomst en bestemming: intern of extern
 
-Hetzelfde dubbelklik-patroon geldt voor een ingevulde **supplier**-
-(herkomst) en **customer**-rechthoek (bestemming) — een enkele klik blijft
-gewoon het label van dat vak hernoemen. Het formulier vraagt:
+Een ingevulde **supplier**- (herkomst) en **customer**-rechthoek
+(bestemming) tonen niet langer een handmatig getypt label: een **enkele
+klik** opent meteen het formulier (geen los tekstveld meer, dus geen
+klik/dubbelklik-onderscheid nodig zoals bij een processtap). Het
+formulier vraagt:
 
 - **Type**: Intern of Extern.
 - Bij **Intern**: een keuzelijst **Functie**, die dezelfde `functions`-
@@ -215,6 +217,17 @@ gewoon het label van dat vak hernoemen. Het formulier vraagt:
   `external_parties`-stamtabel (voorgevuld met Klant, Leverancier, Bank,
   Prospect), eveneens met een **···**-beheerknop om zelf waarden toe te
   voegen of te verwijderen.
+
+**Wat de rechthoek toont** (`partyResolvedLabel`): de naam van de gekozen
+functie of externe partij wint zodra die gekozen is — dat is nu de enige
+manier om de tekst op het vak te bepalen. Zolang er nog geen Type/waarde
+gekozen is, valt de weergave terug op het onderliggende `label`-veld: dat
+vangt zowel oudere, al bestaande SIPOC's op (met een destijds handmatig
+getypt label, van vóór dit formulier bestond) als de overgangsfase
+"Type gekozen, waarde nog niet" — zonder dat een vak tijdelijk leeg
+oogt. Zodra een Functie/Externe partij gekozen wordt, overschrijft de
+resolved naam dat veld alsnog, dus na één keer door het formulier is de
+weergave weer volledig consistent.
 
 De twee beheerdialogen (Functies / Externe partijen) delen dezelfde
 generieke modal-code (`openMasterListModal`) — enige verschil is welke

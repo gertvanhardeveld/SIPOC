@@ -342,6 +342,9 @@
     padding: 14px 16px;
     min-height: 54px;
   }
+  .box-supplier, .box-customer{
+    cursor: pointer; /* opens the intern/extern form, no longer free text */
+  }
   .process-wrap{
     position: relative;
     width: 100%;
@@ -743,6 +746,23 @@
     );
   }
 
+  // What a supplier/customer rectangle should display: the name of the
+  // chosen function (intern) or external party (extern) wins once set;
+  // falls back to the free-typed label otherwise (older data, or a type
+  // chosen but no specific function/party picked yet).
+  function partyResolvedLabel(party){
+    if (!party) return null;
+    if (party.kind === "intern" && party.functionId){
+      var fn = functionsList.filter(function(f){ return f.id === party.functionId; })[0];
+      if (fn) return fn.name;
+    }
+    if (party.kind === "extern" && party.externalId){
+      var ep = externalPartiesList.filter(function(p){ return p.id === party.externalId; })[0];
+      if (ep) return ep.name;
+    }
+    return party.label;
+  }
+
   function renderStepBlock(step, sIdx){
     var rowCount = Math.max(step.inputs.length, step.outputs.length, 1);
     var rowsHtml = "";
@@ -756,7 +776,7 @@
       if (inp && inp.supplier){
         supplierCellInner =
           '<div class="process-wrap">' +
-            box({ label: inp.supplier.label, placeholder: COLS.supplier, path: sIdx + ".input." + r + ".supplier.label", extraClass: "box-supplier" }) +
+            box({ label: partyResolvedLabel(inp.supplier), placeholder: COLS.supplier, path: sIdx + ".input." + r + ".supplier.label", extraClass: "box-supplier" }) +
             minusBtn("removeSupplier", { step: sIdx, input: r }) +
           '</div>';
         arrowSupplierInput = arrowRight();
@@ -814,7 +834,7 @@
         arrowOutputCustomer = arrowRight();
         customerCellInner =
           '<div class="process-wrap">' +
-            box({ label: out.customer.label, placeholder: COLS.customer, path: sIdx + ".output." + r + ".customer.label", extraClass: "box-customer" }) +
+            box({ label: partyResolvedLabel(out.customer), placeholder: COLS.customer, path: sIdx + ".output." + r + ".customer.label", extraClass: "box-customer" }) +
             minusBtn("removeCustomer", { step: sIdx, output: r }) +
           '</div>';
       } else {
@@ -1365,11 +1385,14 @@
     var overlay = document.createElement("div");
     overlay.className = "modal-overlay";
     overlay.id = "party-modal-overlay";
-    var title = party.label ? escapeHtml(party.label) : ("Naamloze " + columnLabel.toLowerCase());
+    function titleText(){
+      var resolved = partyResolvedLabel(party);
+      return resolved ? escapeHtml(resolved) : ("Naamloze " + columnLabel.toLowerCase());
+    }
     overlay.innerHTML =
       '<div class="modal-panel">' +
         '<div class="modal-header">' +
-          '<h2>Details &mdash; <em>' + title + '</em></h2>' +
+          '<h2>Details &mdash; <em id="party-modal-title">' + titleText() + '</em></h2>' +
           '<button type="button" class="modal-close" id="party-modal-close" title="Sluiten">&times;</button>' +
         '</div>' +
         '<div class="modal-body">' +
@@ -1386,6 +1409,11 @@
     var refField = overlay.querySelector("#party-ref-field");
 
     function persist(){
+      // the rectangle shows the chosen function/external party, not a
+      // hand-typed label — keep `label` in sync so it (and the modal
+      // title) always reflect the current choice
+      party.label = partyResolvedLabel(party);
+      overlay.querySelector("#party-modal-title").textContent = titleText();
       if (ref.kind === "supplier") syncInput(ref.step, ref.input);
       else syncOutput(ref.step, ref.output);
     }
@@ -1558,6 +1586,12 @@
   var main = document.getElementById("main");
 
   main.addEventListener("click", function(e){
+    var partyBoxEl = e.target.closest(".box-supplier, .box-customer");
+    if (partyBoxEl){
+      openPartyModal(partyBoxEl.getAttribute("data-path"));
+      return;
+    }
+
     var boxEl = e.target.closest(".box");
     if (boxEl && boxEl.getAttribute("contenteditable") !== "true"){
       startEdit(boxEl);
@@ -1638,17 +1672,18 @@
   });
 
   main.addEventListener("dblclick", function(e){
-    var boxEl = e.target.closest(".box-process, .box-supplier, .box-customer");
+    // Supplier/customer rectangles now open their form on a single click
+    // (see the click handler above) — a dblclick there just fires that
+    // same single-click handling twice, which is harmless. Only the
+    // process-step rectangle still distinguishes single (rename) from
+    // double (open form) click.
+    var boxEl = e.target.closest(".box-process");
     if (!boxEl) return;
     e.preventDefault();
     if (boxEl.getAttribute("contenteditable") === "true"){
       boxEl.blur(); // cleanly commits/ends the inline edit the two clicks just started
     }
-    if (boxEl.classList.contains("box-process")){
-      openStepModal(parseInt(boxEl.getAttribute("data-path").split(".")[0], 10));
-    } else {
-      openPartyModal(boxEl.getAttribute("data-path"));
-    }
+    openStepModal(parseInt(boxEl.getAttribute("data-path").split(".")[0], 10));
   });
 
   main.addEventListener("focusout", function(e){
