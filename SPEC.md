@@ -91,23 +91,31 @@ external_parties               -- "stamtabel" voor externe herkomst/bestemming
   id          uuid primary key
   name        text unique (hoofdletterongevoelig)
   created_at  timestamptz       -- voorgevuld met Klant, Leverancier, Bank, Prospect
+
+communication_types            -- "stamtabel" voor soort communicatie
+  id          uuid primary key
+  name        text unique (hoofdletterongevoelig)
+  created_at  timestamptz       -- voorgevuld met E-mail, Telefoon, Systeem
 ```
 
-`sipoc_inputs` en `sipoc_outputs` krijgen daarnaast elk drie extra kolommen
-voor de classificatie van de supplier, resp. customer:
+`sipoc_inputs` en `sipoc_outputs` krijgen daarnaast elk extra kolommen
+voor de classificatie van de supplier, resp. customer, én voor de soort
+communicatie van de input/output zelf:
 
 ```
 sipoc_inputs
   ...
   supplier_kind          text  -- 'intern' | 'extern' | NULL
-  supplier_function_id   uuid  → functions(id)         on delete set null
-  supplier_external_id   uuid  → external_parties(id)   on delete set null
+  supplier_function_id   uuid  → functions(id)             on delete set null
+  supplier_external_id   uuid  → external_parties(id)      on delete set null
+  communication_type_id  uuid  → communication_types(id)   on delete set null
 
 sipoc_outputs
   ...
   customer_kind          text  -- 'intern' | 'extern' | NULL
-  customer_function_id   uuid  → functions(id)         on delete set null
-  customer_external_id   uuid  → external_parties(id)   on delete set null
+  customer_function_id   uuid  → functions(id)             on delete set null
+  customer_external_id   uuid  → external_parties(id)      on delete set null
+  communication_type_id  uuid  → communication_types(id)   on delete set null
 ```
 
 Precies één van de twee referentiekolommen is relevant, afhankelijk van
@@ -234,6 +242,25 @@ generieke modal-code (`openMasterListModal`) — enige verschil is welke
 stamtabel, labels en placeholder-tekst ze gebruiken. Een net aangemaakte
 waarde wordt, net als bij het stapformulier, meteen geselecteerd voor het
 vak waar je mee bezig was.
+
+## 5c. Input en output: omschrijving en soort communicatie
+
+Dubbelklikken op een input- of output-rechthoek (net als bij een
+processtap: een enkele klik blijft gewoon rechtstreeks op de rechthoek
+hernoemen) opent een formulier met:
+
+- **Omschrijving**: hetzelfde label als de rechthoek zelf, nu ook
+  bewerkbaar via een tekstveld in het formulier — bewerken via de
+  rechthoek zelf (enkele klik) of via dit veld komt op precies hetzelfde
+  neer, ze delen hetzelfde onderliggende veld.
+- **Soort communicatie**: een keuzelijst uit een nieuwe
+  `communication_types`-stamtabel (voorgevuld met E-mail, Telefoon,
+  Systeem), met dezelfde **···**-beheerknop als bij Functie/Externe
+  partij om zelf waarden toe te voegen of te verwijderen.
+
+In tegenstelling tot supplier/customer (deel 5b) blijft de rechthoek hier
+gewoon het (vrije) label tonen — de soort communicatie is aanvullende
+informatie, geen vervanging van wat er op het vak staat.
 
 ## 6. Toegang en beveiliging — bewuste afweging
 

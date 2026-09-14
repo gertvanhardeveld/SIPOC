@@ -525,6 +525,19 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-bg);
   }
+  .modal-field > input[type="text"]{
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--grey-box-border);
+    font-family: inherit;
+    font-size: 13.5px;
+    outline: none;
+  }
+  .modal-field > input[type="text"]:focus{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+  }
   .modal-function-row{ display:flex; gap: 8px; align-items:stretch; }
   .modal-function-row select{
     flex: 1;
@@ -672,8 +685,8 @@
   }
 
   function makeStep(){ return { id: makeId(), label: null, instructions: null, functionId: null, inputs: [], outputs: [] }; }
-  function makeInput(){ return { id: makeId(), label: null, supplier: null }; }
-  function makeOutput(){ return { id: makeId(), label: null, customer: null }; }
+  function makeInput(){ return { id: makeId(), label: null, supplier: null, communicationTypeId: null }; }
+  function makeOutput(){ return { id: makeId(), label: null, customer: null, communicationTypeId: null }; }
   function makeSupplier(){ return { id: makeId(), label: null, kind: null, functionId: null, externalId: null }; }
   function makeCustomer(){ return { id: makeId(), label: null, kind: null, functionId: null, externalId: null }; }
 
@@ -685,6 +698,7 @@
   // Global master lists ("stamtabellen"), shared across all processes
   var functionsList = [];
   var externalPartiesList = [];
+  var communicationTypesList = [];
 
   // ---------------------------------------------------------------------
   // Small helpers
@@ -994,7 +1008,8 @@
       id: input.id, step_id: stepId, position: idx, label: input.label, supplier_label: supplierValue(input),
       supplier_kind: input.supplier ? input.supplier.kind : null,
       supplier_function_id: input.supplier ? input.supplier.functionId : null,
-      supplier_external_id: input.supplier ? input.supplier.externalId : null
+      supplier_external_id: input.supplier ? input.supplier.externalId : null,
+      communication_type_id: input.communicationTypeId
     };
   }
   function outputRow(output, idx, stepId){
@@ -1002,7 +1017,8 @@
       id: output.id, step_id: stepId, position: idx, label: output.label, customer_label: customerValue(output),
       customer_kind: output.customer ? output.customer.kind : null,
       customer_function_id: output.customer ? output.customer.functionId : null,
-      customer_external_id: output.customer ? output.customer.externalId : null
+      customer_external_id: output.customer ? output.customer.externalId : null,
+      communication_type_id: output.communicationTypeId
     };
   }
   function syncInput(step, input){
@@ -1096,6 +1112,38 @@
   }
 
   // ---------------------------------------------------------------------
+  // Communication types master table ("stamtabel"): shared across all processes
+  // ---------------------------------------------------------------------
+  function fetchCommunicationTypes(){
+    return sb.from("communication_types").select("id,name").then(function(res){
+      if (res.error){ console.error(res.error); communicationTypesList = []; return; }
+      communicationTypesList = (res.data || []).slice().sort(function(a, b){
+        return (a.name || "").localeCompare(b.name || "", "nl", { sensitivity: "base" });
+      });
+    });
+  }
+
+  function createCommunicationType(name){
+    var trimmed = name.trim();
+    if (!trimmed) return Promise.resolve(null);
+    var id = makeId();
+    return trackSave(sb.from("communication_types").insert({ id: id, name: trimmed })).then(function(){
+      return fetchCommunicationTypes().then(function(){ return id; });
+    });
+  }
+
+  function deleteCommunicationTypeRow(id){
+    return trackSave(sb.from("communication_types").delete().eq("id", id)).then(function(){
+      return fetchCommunicationTypes().then(function(){
+        state.steps.forEach(function(step){
+          step.inputs.forEach(function(inp){ if (inp.communicationTypeId === id) inp.communicationTypeId = null; });
+          step.outputs.forEach(function(out){ if (out.communicationTypeId === id) out.communicationTypeId = null; });
+        });
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------
   // Loading / switching / creating / deleting processes
   // ---------------------------------------------------------------------
   function fetchProcessList(){
@@ -1125,13 +1173,13 @@
               instructions: row.instructions,
               functionId: row.function_id,
               inputs: inputsRows.filter(function(i){ return i.step_id === row.id; }).map(function(i){
-                return { id: i.id, label: i.label, supplier: i.supplier_label === null ? null : {
+                return { id: i.id, label: i.label, communicationTypeId: i.communication_type_id, supplier: i.supplier_label === null ? null : {
                   id: makeId(), label: i.supplier_label || null,
                   kind: i.supplier_kind || null, functionId: i.supplier_function_id || null, externalId: i.supplier_external_id || null
                 } };
               }),
               outputs: outputsRows.filter(function(o){ return o.step_id === row.id; }).map(function(o){
-                return { id: o.id, label: o.label, customer: o.customer_label === null ? null : {
+                return { id: o.id, label: o.label, communicationTypeId: o.communication_type_id, customer: o.customer_label === null ? null : {
                   id: makeId(), label: o.customer_label || null,
                   kind: o.customer_kind || null, functionId: o.customer_function_id || null, externalId: o.customer_external_id || null
                 } };
@@ -1579,6 +1627,110 @@
     });
   }
 
+  function openCommunicationTypesModal(onChange){
+    openMasterListModal({
+      overlayId: "comm-modal-overlay",
+      title: "Communicatiesoorten beheren",
+      getList: function(){ return communicationTypesList; },
+      createItem: createCommunicationType,
+      deleteItem: deleteCommunicationTypeRow,
+      placeholder: "Nieuwe communicatiesoort…",
+      onChange: onChange
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Input/output detail modal: omschrijving (label) + soort communicatie
+  // — double-click on an input or output rectangle opens it (single click
+  // still renames it directly, same as a process step).
+  // ---------------------------------------------------------------------
+  function communicationOptionsHtml(selectedId){
+    var html = '<option value="">— geen communicatie —</option>';
+    communicationTypesList.forEach(function(c){
+      html += '<option value="' + c.id + '"' + (c.id === selectedId ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>';
+    });
+    return html;
+  }
+
+  function openFieldModal(path){
+    var ref = getByPath(path);
+    if (!ref || (ref.kind !== "input" && ref.kind !== "output")) return;
+    var entity = ref.obj;
+    var columnLabel = ref.kind === "input" ? "Input" : "Output";
+    closeModal(document.getElementById("field-modal-overlay"));
+
+    var overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.id = "field-modal-overlay";
+    function titleText(){
+      return entity.label ? escapeHtml(entity.label) : ("Naamloze " + columnLabel.toLowerCase());
+    }
+    overlay.innerHTML =
+      '<div class="modal-panel">' +
+        '<div class="modal-header">' +
+          '<h2>Details &mdash; <em id="field-modal-title">' + titleText() + '</em></h2>' +
+          '<button type="button" class="modal-close" id="field-modal-close" title="Sluiten">&times;</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<div class="modal-field">' +
+            '<label for="field-label-input">Omschrijving</label>' +
+            '<input type="text" id="field-label-input" value="' + (entity.label ? escapeHtml(entity.label) : "") + '" placeholder="' + columnLabel + '" autocomplete="off">' +
+          '</div>' +
+          '<div class="modal-field">' +
+            '<label for="field-comm-select">Soort communicatie</label>' +
+            '<div class="modal-function-row">' +
+              '<select id="field-comm-select">' + communicationOptionsHtml(entity.communicationTypeId) + '</select>' +
+              '<button type="button" class="ellipsis-btn" id="field-manage-btn" title="Communicatiesoorten beheren">&hellip;</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    var labelInput = overlay.querySelector("#field-label-input");
+    var commSelect = overlay.querySelector("#field-comm-select");
+    var titleEl = overlay.querySelector("#field-modal-title");
+
+    function persist(){
+      if (ref.kind === "input") syncInput(ref.step, ref.input);
+      else syncOutput(ref.step, ref.output);
+    }
+
+    function saveLabel(){
+      var trimmed = labelInput.value.trim();
+      entity.label = trimmed.length ? trimmed : null;
+      titleEl.textContent = titleText();
+      persist();
+    }
+    labelInput.addEventListener("blur", saveLabel);
+
+    commSelect.addEventListener("change", function(){
+      entity.communicationTypeId = commSelect.value || null;
+      persist();
+    });
+
+    overlay.querySelector("#field-manage-btn").addEventListener("click", function(){
+      openCommunicationTypesModal(function(newId){
+        if (newId) entity.communicationTypeId = newId;
+        commSelect.innerHTML = communicationOptionsHtml(entity.communicationTypeId);
+        if (newId) persist();
+      });
+    });
+
+    function onKeydown(e){ if (e.key === "Escape") close(); }
+    function close(){
+      saveLabel();
+      closeModal(overlay);
+      document.removeEventListener("keydown", onKeydown);
+      render();
+    }
+    overlay.querySelector("#field-modal-close").addEventListener("click", close);
+    overlay.addEventListener("mousedown", function(e){ if (e.target === overlay) close(); });
+    document.addEventListener("keydown", onKeydown);
+
+    labelInput.focus();
+  }
+
   // ---------------------------------------------------------------------
   // Event delegation (click / edit) on #main — covers the process-name
   // header box as well as the whole board
@@ -1674,16 +1826,20 @@
   main.addEventListener("dblclick", function(e){
     // Supplier/customer rectangles now open their form on a single click
     // (see the click handler above) — a dblclick there just fires that
-    // same single-click handling twice, which is harmless. Only the
-    // process-step rectangle still distinguishes single (rename) from
+    // same single-click handling twice, which is harmless. Process-step,
+    // input and output rectangles still distinguish single (rename) from
     // double (open form) click.
-    var boxEl = e.target.closest(".box-process");
+    var boxEl = e.target.closest(".box-process, .box-input, .box-output");
     if (!boxEl) return;
     e.preventDefault();
     if (boxEl.getAttribute("contenteditable") === "true"){
       boxEl.blur(); // cleanly commits/ends the inline edit the two clicks just started
     }
-    openStepModal(parseInt(boxEl.getAttribute("data-path").split(".")[0], 10));
+    if (boxEl.classList.contains("box-process")){
+      openStepModal(parseInt(boxEl.getAttribute("data-path").split(".")[0], 10));
+    } else {
+      openFieldModal(boxEl.getAttribute("data-path"));
+    }
   });
 
   main.addEventListener("focusout", function(e){
@@ -1728,7 +1884,7 @@
   // Init
   // ---------------------------------------------------------------------
   function init(){
-    Promise.all([fetchProcessList(), fetchFunctions(), fetchExternalParties()]).then(function(){
+    Promise.all([fetchProcessList(), fetchFunctions(), fetchExternalParties(), fetchCommunicationTypes()]).then(function(){
       renderSidebar();
       var params = new URLSearchParams(window.location.search);
       var wantedId = params.get("p");
