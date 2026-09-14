@@ -399,6 +399,27 @@ gezet bij het aanmaken) of iemand op de **bewerkerslijst**
   Settings (bijv. Resend of Postmark, beide met een gratis tier die ruim
   voldoende is voor dit schaalniveau). Dit is een dashboard-instelling,
   niet iets dat via migraties/code geregeld wordt.
+- **Bug gevonden en gefixt op 2026-09-14: `upsert()` op `processes` werd
+  altijd geweigerd door RLS, ook voor de eigenaar zelf.** `processes`
+  heeft een aparte INSERT-policy (`with_check: created_by = auth.uid()`)
+  naast de UPDATE-policy (`can_edit_process(id)`). Een `upsert()` compileert
+  naar `INSERT ... ON CONFLICT (id) DO UPDATE` — en Postgres past de
+  INSERT-policy's `WITH CHECK` altíjd toe op de voorgestelde rij, óók als
+  de conflict/update-kant uiteindelijk wordt genomen. Omdat het opslaan
+  van een proces (`syncProcess()` in `index.html`, `saveProcess()` in de
+  nieuwe app) `created_by` nooit meesteurde, werd die kolom impliciet
+  `null` in de voorgestelde rij — en `null = auth.uid()` is nooit waar,
+  dus elke procesnaam-wijziging/omschrijving-wijziging werd geweigerd
+  (`42501: new row violates row-level security policy`), voor iedereen,
+  inclusief de eigenaar. Bevestigd door de exacte upsert te simuleren via
+  `set local role authenticated` + een JWT-claim. Fix: een gewone
+  `update().eq("id", id)` in plaats van `upsert()` — dat proces bestaat
+  altijd al op dit punt (aanmaken gaat via een aparte `insert()` mét
+  `created_by`), dus er is nooit een insert-pad nodig. Toegepast in beide
+  apps. **Les voor vervolg:** `upsert()` op een tabel met een striktere
+  INSERT- dan UPDATE-policy is een terugkerende valkuil — gebruik 'm
+  alleen als de payload alle kolommen bevat die de INSERT-policy nodig
+  heeft, of vermijd 'm zodra de rij al gegarandeerd bestaat.
 
 ## 7. Bewust (nog) buiten scope
 

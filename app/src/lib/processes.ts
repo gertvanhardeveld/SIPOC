@@ -63,9 +63,20 @@ export interface ProcessSaveFields {
 }
 
 export async function saveProcess(id: string, fields: ProcessSaveFields): Promise<void> {
+  // Plain update, not upsert: this always targets an existing process (a
+  // new one is created separately via createProcess/insert, with
+  // created_by set). An upsert here is compiled by Postgres as
+  // INSERT ... ON CONFLICT DO UPDATE, which — even when the conflict path
+  // is taken — still evaluates the table's INSERT policy's WITH CHECK
+  // against the proposed row. Since that check requires
+  // created_by = auth.uid() and this payload never carries created_by,
+  // every save would be rejected with a bogus RLS violation, including by
+  // the process's own owner. update() only triggers the UPDATE policy
+  // (can_edit_process), which is the one that actually applies here.
   const { error } = await supabase
     .from("processes")
-    .upsert({ id, ...fields, updated_at: new Date().toISOString() });
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) throw error;
 }
 

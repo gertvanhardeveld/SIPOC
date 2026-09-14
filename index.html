@@ -1116,12 +1116,21 @@
   function customerValue(output){ return output.customer === null ? null : (output.customer.label || ""); }
 
   function syncProcess(){
-    return trackSave(sb.from("processes").upsert({
-      id: state.processId, name: state.processName,
+    // Plain update, not upsert: this always targets an existing process (a
+    // new one is created separately in createNewProcess(), with created_by
+    // set there). An upsert here compiles to INSERT ... ON CONFLICT DO
+    // UPDATE, which Postgres still runs the INSERT policy's WITH CHECK
+    // against — even on the conflict/update path. That policy requires
+    // created_by = auth.uid(), and this payload never includes created_by,
+    // so every save would be rejected with an RLS violation, including by
+    // the process's own owner. update() only triggers the UPDATE policy
+    // (can_edit_process), which is the one that actually applies here.
+    return trackSave(sb.from("processes").update({
+      name: state.processName,
       description: state.processDescription, version: state.processVersion,
       goal_description: state.processGoal, owner_id: state.processOwnerId,
       updated_at: new Date().toISOString()
-    }));
+    }).eq("id", state.processId));
   }
   function syncStep(step){
     var idx = state.steps.indexOf(step);
