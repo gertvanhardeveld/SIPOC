@@ -20,6 +20,8 @@ export interface StepInput {
   label: string | null;
   communicationTypeId: string | null;
   supplier: PartyRef | null;
+  /** AO-online-stijl: interne input wordt blauw weergegeven i.p.v. lichtgrijs. */
+  isInternal: boolean;
 }
 
 export interface StepOutput {
@@ -27,6 +29,8 @@ export interface StepOutput {
   label: string | null;
   communicationTypeId: string | null;
   customer: PartyRef | null;
+  /** AO-online-stijl: interne output wordt blauw weergegeven i.p.v. lichtgrijs. */
+  isInternal: boolean;
 }
 
 export interface SipocStep {
@@ -36,6 +40,8 @@ export interface SipocStep {
   functionId: string | null;
   inputs: StepInput[];
   outputs: StepOutput[];
+  /** AO-online-stijl: een beslissing-processtap wordt rood weergegeven. */
+  isDecision: boolean;
 }
 
 export interface MasterItem {
@@ -48,13 +54,13 @@ export function makeId(): string {
 }
 
 export function makeStep(): SipocStep {
-  return { id: makeId(), label: null, instructions: null, functionId: null, inputs: [], outputs: [] };
+  return { id: makeId(), label: null, instructions: null, functionId: null, inputs: [], outputs: [], isDecision: false };
 }
 export function makeInput(): StepInput {
-  return { id: makeId(), label: null, communicationTypeId: null, supplier: null };
+  return { id: makeId(), label: null, communicationTypeId: null, supplier: null, isInternal: false };
 }
 export function makeOutput(): StepOutput {
-  return { id: makeId(), label: null, communicationTypeId: null, customer: null };
+  return { id: makeId(), label: null, communicationTypeId: null, customer: null, isInternal: false };
 }
 export function makeParty(): PartyRef {
   return { id: makeId(), label: null, kind: null, functionId: null, externalId: null };
@@ -109,12 +115,14 @@ export async function loadSteps(processId: string): Promise<SipocStep[]> {
     label: row.label,
     instructions: row.instructions,
     functionId: row.function_id,
+    isDecision: !!row.is_decision,
     inputs: inputsRows
       .filter((i) => i.step_id === row.id)
       .map((i): StepInput => ({
         id: i.id,
         label: i.label,
         communicationTypeId: i.communication_type_id,
+        isInternal: !!i.is_internal,
         supplier:
           i.supplier_label === null
             ? null
@@ -132,6 +140,7 @@ export async function loadSteps(processId: string): Promise<SipocStep[]> {
         id: o.id,
         label: o.label,
         communicationTypeId: o.communication_type_id,
+        isInternal: !!o.is_internal,
         customer:
           o.customer_label === null
             ? null
@@ -154,6 +163,7 @@ export async function syncStepRow(processId: string, step: SipocStep, position: 
     label: step.label,
     instructions: step.instructions,
     function_id: step.functionId,
+    is_decision: step.isDecision,
   });
   if (error) throw error;
 }
@@ -173,6 +183,7 @@ function inputRow(input: StepInput, position: number, stepId: string) {
     supplier_function_id: input.supplier ? input.supplier.functionId : null,
     supplier_external_id: input.supplier ? input.supplier.externalId : null,
     communication_type_id: input.communicationTypeId,
+    is_internal: input.isInternal,
   };
 }
 
@@ -187,6 +198,7 @@ function outputRow(output: StepOutput, position: number, stepId: string) {
     customer_function_id: output.customer ? output.customer.functionId : null,
     customer_external_id: output.customer ? output.customer.externalId : null,
     communication_type_id: output.communicationTypeId,
+    is_internal: output.isInternal,
   };
 }
 

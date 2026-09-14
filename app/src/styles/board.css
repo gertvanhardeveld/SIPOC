@@ -14,6 +14,10 @@
     minmax(120px, 1fr);
   min-width: 760px;
   position: relative;
+  /* AO-online-stijl: het bord zelf is een wit canvas, los van de
+     lichtgrijze achtergrond van de rest van de app-schil. */
+  background: #ffffff;
+  padding: 4px;
 }
 
 .board-wrap {
@@ -129,21 +133,29 @@
   border-top: 6px solid var(--color-line);
 }
 
+/*
+ * AO-online-stijl: elk blokje op het bord — herkomst, input, activiteit,
+ * output, bestemming — deelt dezelfde vorm (afronding, opvulling,
+ * lettergrootte). Alleen achtergrond/randkleur wisselen per type/status,
+ * hieronder per variant.
+ */
 .box {
   width: 100%;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 13px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
   line-height: 1.3;
   text-align: center;
   background: var(--color-grey-box);
-  border: 1px solid var(--color-grey-box-border);
+  border: 1.5px solid var(--color-grey-box-border);
   cursor: text;
   word-break: break-word;
   outline: none;
   transition:
     box-shadow 0.12s ease,
-    border-color 0.12s ease;
+    border-color 0.12s ease,
+    background-color 0.12s ease;
 }
 .box.placeholder {
   color: var(--color-grey-text);
@@ -160,14 +172,35 @@ input.box {
   font-family: inherit;
   display: block;
 }
+
+/* Activiteit (processtap): wit met een blauwe rand — behalve het
+   beslissing-type, dat AO-online-rood wordt. */
 .box-process {
   background: #ffffff;
-  border: 1.5px solid var(--color-process-border);
-  border-radius: 10px;
-  font-weight: 600;
-  padding: 14px 16px;
-  min-height: 54px;
+  border-color: var(--color-accent);
 }
+.box-process.box-decision {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger);
+}
+.box-process.box-decision.placeholder {
+  color: var(--color-danger);
+}
+
+/* Input/output: lichtgrijs (extern/onbekend) of blauw met witte tekst
+   zodra "Intern" is aangevinkt. */
+.box-input.box-internal,
+.box-output.box-internal {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+.box-input.box-internal.placeholder,
+.box-output.box-internal.placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+
 .box-supplier,
 .box-customer {
   cursor: pointer; /* opens the intern/extern form, no free text */
@@ -389,6 +422,26 @@ input.box {
   text-transform: uppercase;
   letter-spacing: 0.3px;
   margin-bottom: 6px;
+}
+/* A checkbox field (bv. "Beslissing", "Intern") reads as a normal
+   sentence, not as an uppercase field heading. */
+.modal-field label.modal-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--color-dark-text);
+  text-transform: none;
+  letter-spacing: normal;
+  margin-bottom: 0;
+  cursor: pointer;
+}
+.modal-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
 }
 .modal-field textarea {
   width: 100%;

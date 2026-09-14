@@ -139,6 +139,17 @@ sipoc_outputs
   communication_type_id  uuid  → communication_types(id)   on delete set null
 ```
 
+Voor de AO-online-achtige weergave (alleen in de nieuwe React-app,
+`index.html` heeft er geen formuliervelden voor — die kolommen staan er
+voor die app dus altijd op hun default `false`) zijn er nog drie losse
+boolean-kolommen bijgekomen, elk `not null default false`:
+
+```
+sipoc_steps.is_decision    -- "Beslissing"-vinkje: rood i.p.v. wit/blauw
+sipoc_inputs.is_internal   -- "Intern"-vinkje: blauw i.p.v. lichtgrijs
+sipoc_outputs.is_internal  -- idem, voor output
+```
+
 Precies één van de twee referentiekolommen is relevant, afhankelijk van
 `*_kind` — bij het wisselen van intern ↔ extern in het formulier wordt de
 niet-relevante referentie meteen op NULL gezet, zodat er nooit een

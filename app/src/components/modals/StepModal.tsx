@@ -7,24 +7,31 @@ import type { SipocStep } from "../../lib/board";
 interface StepModalProps {
   step: SipocStep;
   onClose: () => void;
-  onSave: (fields: { instructions: string | null; functionId: string | null }) => void;
+  onSave: (fields: { instructions: string | null; functionId: string | null; isDecision: boolean }) => void;
 }
 
-/** Werkinstructie + functie — opened by double-clicking a process-step box. */
+/** Werkinstructie + functie + beslissing — opened by double-clicking a
+ * process-step box. */
 export default function StepModal({ step, onClose, onSave }: StepModalProps) {
   const { items: functionsList } = useMasterTable("functions");
   const [instructions, setInstructions] = useState(step.instructions ?? "");
   const [functionId, setFunctionId] = useState(step.functionId ?? "");
+  const [isDecision, setIsDecision] = useState(step.isDecision);
   const [managingFunctions, setManagingFunctions] = useState(false);
 
   function commitInstructions() {
     const trimmed = instructions.trim();
-    onSave({ instructions: trimmed.length ? trimmed : null, functionId: functionId || null });
+    onSave({ instructions: trimmed.length ? trimmed : null, functionId: functionId || null, isDecision });
   }
 
   function handleFunctionChange(value: string) {
     setFunctionId(value);
-    onSave({ instructions: instructions.trim() || null, functionId: value || null });
+    onSave({ instructions: instructions.trim() || null, functionId: value || null, isDecision });
+  }
+
+  function handleDecisionChange(value: boolean) {
+    setIsDecision(value);
+    onSave({ instructions: instructions.trim() || null, functionId: functionId || null, isDecision: value });
   }
 
   function handleClose() {
@@ -68,6 +75,16 @@ export default function StepModal({ step, onClose, onSave }: StepModalProps) {
               &hellip;
             </button>
           </div>
+        </div>
+        <div className="modal-field">
+          <label className="modal-checkbox">
+            <input
+              type="checkbox"
+              checked={isDecision}
+              onChange={(e) => handleDecisionChange(e.target.checked)}
+            />
+            Beslissing
+          </label>
         </div>
       </ModalShell>
       {managingFunctions && (

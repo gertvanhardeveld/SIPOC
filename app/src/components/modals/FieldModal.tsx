@@ -8,25 +8,31 @@ interface FieldModalProps {
   entity: StepInput | StepOutput;
   columnLabel: "Input" | "Output";
   onClose: () => void;
-  onSave: (fields: { label: string | null; communicationTypeId: string | null }) => void;
+  onSave: (fields: { label: string | null; communicationTypeId: string | null; isInternal: boolean }) => void;
 }
 
-/** Omschrijving + soort communicatie — opened by double-clicking an input
- * or output box. */
+/** Omschrijving + soort communicatie + intern — opened by double-clicking
+ * an input or output box. */
 export default function FieldModal({ entity, columnLabel, onClose, onSave }: FieldModalProps) {
   const { items: communicationTypesList } = useMasterTable("communication_types");
   const [label, setLabel] = useState(entity.label ?? "");
   const [communicationTypeId, setCommunicationTypeId] = useState(entity.communicationTypeId ?? "");
+  const [isInternal, setIsInternal] = useState(entity.isInternal);
   const [managing, setManaging] = useState(false);
 
   function commitLabel() {
     const trimmed = label.trim();
-    onSave({ label: trimmed.length ? trimmed : null, communicationTypeId: communicationTypeId || null });
+    onSave({ label: trimmed.length ? trimmed : null, communicationTypeId: communicationTypeId || null, isInternal });
   }
 
   function handleCommChange(value: string) {
     setCommunicationTypeId(value);
-    onSave({ label: label.trim() || null, communicationTypeId: value || null });
+    onSave({ label: label.trim() || null, communicationTypeId: value || null, isInternal });
+  }
+
+  function handleInternalChange(value: boolean) {
+    setIsInternal(value);
+    onSave({ label: label.trim() || null, communicationTypeId: communicationTypeId || null, isInternal: value });
   }
 
   function handleClose() {
@@ -72,6 +78,16 @@ export default function FieldModal({ entity, columnLabel, onClose, onSave }: Fie
               &hellip;
             </button>
           </div>
+        </div>
+        <div className="modal-field">
+          <label className="modal-checkbox">
+            <input
+              type="checkbox"
+              checked={isInternal}
+              onChange={(e) => handleInternalChange(e.target.checked)}
+            />
+            Intern
+          </label>
         </div>
       </ModalShell>
       {managing && (

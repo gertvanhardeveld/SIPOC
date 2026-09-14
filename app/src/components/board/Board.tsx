@@ -2,11 +2,11 @@ import type { MasterItem, SipocStep } from "../../lib/board";
 import StepBlock from "./StepBlock";
 
 export const COLS = {
-  supplier: "Supplier",
+  supplier: "Herkomst",
   input: "Input",
-  process: "Processtap",
+  process: "Activiteit",
   output: "Output",
-  customer: "Customer",
+  customer: "Bestemming",
 };
 
 export interface BoardActions {
@@ -47,15 +47,15 @@ export default function Board({ steps, canEdit, functionsList, externalPartiesLi
           <div className="guide" style={{ gridColumn: 8 }} />
         </div>
         <div className="headers">
-          <div className="col-label">Suppliers</div>
+          <div className="col-label">{COLS.supplier}</div>
           <div />
-          <div className="col-label">Input</div>
+          <div className="col-label">{COLS.input}</div>
           <div />
-          <div className="col-label">Processtap</div>
+          <div className="col-label">{COLS.process}</div>
           <div />
-          <div className="col-label">Output</div>
+          <div className="col-label">{COLS.output}</div>
           <div />
-          <div className="col-label">Customer</div>
+          <div className="col-label">{COLS.customer}</div>
         </div>
         {steps.map((step, idx) => (
           <StepBlock

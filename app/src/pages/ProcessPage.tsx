@@ -286,7 +286,10 @@ export default function ProcessPage() {
   // -----------------------------------------------------------------
   // Detail-modal saves
   // -----------------------------------------------------------------
-  function saveStepDetails(stepIdx: number, fields: { instructions: string | null; functionId: string | null }) {
+  function saveStepDetails(
+    stepIdx: number,
+    fields: { instructions: string | null; functionId: string | null; isDecision: boolean },
+  ) {
     if (!steps || !id) return;
     const next = steps.map((s, i) => (i === stepIdx ? { ...s, ...fields } : s));
     setSteps(next);
@@ -295,7 +298,7 @@ export default function ProcessPage() {
 
   function saveFieldDetails(
     target: FieldTarget,
-    fields: { label: string | null; communicationTypeId: string | null },
+    fields: { label: string | null; communicationTypeId: string | null; isInternal: boolean },
   ) {
     if (!steps) return;
     const step = steps[target.stepIdx];
@@ -383,7 +386,7 @@ export default function ProcessPage() {
         <div className="board-wrap py-16 text-center text-sm text-grey-text">Bord laden…</div>
       )}
 
-      <footer className="board-footer">Suppliers &middot; Input &middot; Processtap &middot; Output &middot; Customer</footer>
+      <footer className="board-footer">Herkomst &middot; Input &middot; Activiteit &middot; Output &middot; Bestemming</footer>
 
       {stepModalIdx !== null && steps && steps[stepModalIdx] && (
         <StepModal

@@ -85,7 +85,7 @@ export default function StepBlock({
                     <EditableBox
                       value={input.label}
                       placeholder={COLS.input}
-                      className="box-input"
+                      className={`box-input${input.isInternal ? " box-internal" : ""}`}
                       editable={canEdit}
                       onCommit={(v) => actions.renameInput(stepIdx, r, v)}
                       onOpenDetails={() => actions.openFieldModal("input", stepIdx, r)}
@@ -122,7 +122,7 @@ export default function StepBlock({
                     <EditableBox
                       value={step.label}
                       placeholder={COLS.process}
-                      className="box-process"
+                      className={`box-process${step.isDecision ? " box-decision" : ""}`}
                       editable={canEdit}
                       onCommit={(v) => actions.renameStep(stepIdx, v)}
                       onOpenDetails={() => actions.openStepModal(stepIdx)}
@@ -175,7 +175,7 @@ export default function StepBlock({
                     <EditableBox
                       value={output.label}
                       placeholder={COLS.output}
-                      className="box-output"
+                      className={`box-output${output.isInternal ? " box-internal" : ""}`}
                       editable={canEdit}
                       onCommit={(v) => actions.renameOutput(stepIdx, r, v)}
                       onOpenDetails={() => actions.openFieldModal("output", stepIdx, r)}
