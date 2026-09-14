@@ -1,151 +1,164 @@
 # SIPOC Builder — specificatie
 
-Een interactieve, browser-gebaseerde tool om een SIPOC-diagram (Suppliers –
-Input – Process – Output – Customer) op te bouwen en te bewerken. Volledig
-losstaand: één HTML-bestand (`index.html`), geen dependencies, geen
-build-stap, geen server nodig.
+Een interactieve, browser-gebaseerde tool om SIPOC-diagrammen (Suppliers –
+Input – Process – Output – Customer) op te bouwen en te bewerken, per
+proces opgeslagen in een Supabase-database. Eén HTML-bestand
+(`index.html`), geen build-stap; de enige externe dependency is de
+`@supabase/supabase-js`-library (geladen via CDN) om met de database te
+praten.
 
 ## 1. Doel
 
-Een gebruiker moet een SIPOC-procesdiagram kunnen opbouwen door processtappen
-en hun bijbehorende inputs/suppliers en outputs/customers toe te voegen,
-te benoemen en weer te verwijderen — met een layout die zich automatisch
-herschikt, zodat de vijf kolommen altijd netjes uitgelijnd blijven.
+Een gebruiker moet meerdere processen kunnen bijhouden, per proces een
+SIPOC-diagram opbouwen (processtappen, inputs/suppliers,
+outputs/customers), en die processen makkelijk terugvinden en wisselen
+via een doorzoekbare, alfabetische lijst. Alles wordt live opgeslagen —
+er is geen aparte "opslaan"-knop.
 
-## 2. Kolommen
+## 2. Schermindeling
 
-Van links naar rechts, vast en niet-verplaatsbaar:
-
-| # | Kolom       | Rol                                              |
-|---|-------------|---------------------------------------------------|
-| 1 | Suppliers   | wie levert de input                                |
-| 2 | Input       | wat er de processtap binnenkomt                    |
-| 3 | Processtap  | de activiteit zelf                                 |
-| 4 | Output      | wat de processtap oplevert                         |
-| 5 | Customer    | wie de output ontvangt                             |
-
-De kolomkoppen staan vast bovenaan (niet bewerkbaar) en zijn blauw
-gestyled. Onder de koppen loopt een dunne stippellijn door de volle
-hoogte van het diagram, als vaste kolomscheiding — ook door rijen waar
-een kolom leeg is.
-
-## 3. Datamodel
-
-De hele diagramstatus leeft in één in-memory object (`state`), er wordt
-niets opgeslagen tussen paginabezoeken:
-
-```js
-state = {
-  steps: [
-    {
-      id, label,                  // label: string of null (= leeg/placeholder)
-      inputs: [
-        { id, label, supplier: { id, label } | null }
-      ],
-      outputs: [
-        { id, label, customer: { id, label } | null }
-      ]
-    },
-    ...
-  ]
-}
+```
+┌──────────────┬───────────────────────────────────────────────┐
+│  Sidebar      │  Procesnaam (bewerkbaar)          Opgeslagen  │
+│  - zoekbalk   ├───────────────────────────────────────────────┤
+│  + Nieuw      │  Suppliers | Input | Processtap | Output | .. │
+│  proces       │                                               │
+│  - boom van   │        (het SIPOC-diagram, zie SPEC deel 2    │
+│    processen, │         van de vorige versie: grid, pijlen,   │
+│    A-Z        │         +/× op elke rechthoek)                │
+└──────────────┴───────────────────────────────────────────────┘
 ```
 
-- Precies één lijst van `steps`, in volgorde van boven naar beneden.
-- Elke stap heeft een eigen lijst `inputs` en een eigen lijst `outputs` —
-  onafhankelijk van elkaar in aantal.
-- Een `input` heeft altijd hooguit één `supplier`; een `output` altijd
-  hooguit één `customer` (1-op-1, geen aparte lijst).
-- Bij elke wijziging (toevoegen, verwijderen, tekst aanpassen) wordt het
-  hele bord herberekend en opnieuw getekend vanuit `state` — er is geen
-  aparte "verplaats"-logica; alles schuift vanzelf mee omdat het gewoon
-  opnieuw gerenderd wordt.
+- **Sidebar** (links, vast): een zoekbalk, een "+ Nieuw proces"-knop, en
+  daaronder alle processen die een SIPOC hebben, alfabetisch gegroepeerd
+  per beginletter. Klikken op een naam laadt dat proces. Op hover
+  verschijnt een `×` om dat hele proces (en zijn SIPOC) te verwijderen.
+  Onder de 760px breed schuift de sidebar boven de hoofdinhoud in plaats
+  van ernaast.
+- **Procesnaam-veld**: bovenaan de hoofdinhoud, boven de kolomkoppen.
+  Zelfde bewerk-interactie als de rechthoeken in het diagram: klikken
+  maakt hem bewerkbaar, leeg = het label **"Procesnaam"** in lichtgrijs.
+- **Sync-status**: rechts van het procesnaam-veld, toont
+  "Opgeslagen" / "Bezig met opslaan…" / "Opslaan mislukt — controleer je
+  verbinding".
+- **Het SIPOC-diagram zelf** (kolommen, grid, lijnen met pijlpunten,
+  +/×-knoppen op elke rechthoek) werkt exact zoals eerder gespecificeerd
+  — zie de knoppentabel in deel 7 van de vorige versie van dit document
+  (ongewijzigd; hieronder niet herhaald).
 
-## 4. Layout-principe: CSS Grid
+## 3. Databaseschema (Supabase/Postgres)
 
-- Elke processtap-"blok" is een eigen CSS Grid met **9 kolomtracks**: de 5
-  inhoudskolommen (Supplier/Input/Process/Output/Customer) afgewisseld met
-  4 smalle "pijl-kolommen" van 30px ertussen. Dezelfde kolombreedtes
-  (`--grid-cols`) worden hergebruikt door de kolomkoppen, elk stap-blok en
-  de stippellijn-overlay, zodat alles pixel-exact uitlijnt ondanks dat het
-  losse grids zijn.
-- Een blok heeft zoveel rijen als het maximum van `inputs.length` en
-  `outputs.length` (minimaal 1). Zo kan één processtap meerdere inputs
-  en/of outputs hebben, elk op hun eigen rij.
-- De processtap-rechthoek zelf spant altijd alle rijen van zijn blok
-  (`grid-row: 1 / span rowCount`) en centreert daarbinnen verticaal —
-  ook als er bijvoorbeeld 3 outputs maar 1 input zijn.
-- Stap-blokken worden gewoon na elkaar in de document-flow geplaatst
-  (geen positie-berekening nodig); een stippellijn-overlay met exact
-  dezelfde kolomtemplate zorgt dat de kolomscheidingen er toch doorlopend
-  uitzien over de volle hoogte van het bord.
+Vier tabellen, met echte foreign keys die de relaties tussen de
+SIPOC-onderdelen vastleggen (`on delete cascade`, zodat het verwijderen
+van een proces of stap automatisch alles daaronder opruimt):
 
-## 5. Verbindingen (lijnen + pijlpunten)
+```
+processes
+  id          uuid primary key
+  name        text
+  created_at  timestamptz
+  updated_at  timestamptz
 
-Alle rechthoeken die daadwerkelijk bestaan zijn met elkaar verbonden via
-een dunne lijn met pijlpunt (CSS-getekend, geen tekens/emoji):
+sipoc_steps
+  id          uuid primary key
+  process_id  uuid  → processes(id)  on delete cascade
+  position    integer      -- volgorde binnen het proces
+  label       text
 
-- **Horizontaal** (`.arrow-h`): tussen supplier→input, input→processtap,
-  processtap→output, output→customer. Verschijnt alleen als beide kanten
-  van de verbinding een rechthoek hebben; anders blijft die cel leeg.
-- **Verticaal** (`.arrow-v`): tussen de processtap-rechthoek van stap *n*
-  en die van stap *n+1*, in het midden van de Processtap-kolom.
+sipoc_inputs
+  id              uuid primary key
+  step_id         uuid  → sipoc_steps(id)  on delete cascade
+  position        integer      -- volgorde binnen de stap
+  label           text
+  supplier_label  text         -- NULL = geen supplier-vak; ''  = wel
+                                -- toegevoegd maar nog leeg; tekst = ingevuld
 
-## 6. Bewerken van tekst
+sipoc_outputs
+  id              uuid primary key
+  step_id         uuid  → sipoc_steps(id)  on delete cascade
+  position        integer
+  label           text
+  customer_label  text         -- zelfde NULL/''/tekst-logica als supplier
+```
 
-- Elke rechthoek toont, zolang hij leeg is, de naam van zijn kolom
-  (bv. "Input", "Supplier") in lichtgrijs als placeholder.
-- Klikken op een rechthoek maakt hem `contenteditable`; bij een placeholder
-  wordt de tekst eerst geleegd. Enter of Escape (of ergens anders klikken)
-  rondt het bewerken af.
-- Bij het opslaan wordt whitespace getrimd; een leeg resultaat zet het veld
-  terug naar `null` (= weer placeholder).
+Supplier en customer zijn bewust geen eigen tabellen: het zijn 1-op-1
+eigenschappen van precies één input, resp. output (zoals in de tool
+zelf), dus een kolom op dezelfde rij volstaat en houdt joins simpel.
 
-## 7. Toevoegen / verwijderen — knoppenlogica
+**RLS (Row Level Security)**: staat aan op alle vier tabellen, met een
+policy die de `anon`-rol (dus: iedereen met de link, geen login) volledig
+lees- en schrijfrecht geeft. Dat is een bewuste keuze voor een interne
+tool zonder authenticatie — zie deel 6 hieronder voor de afweging.
 
-Elke knop is een rond `+`- of `×`-icoontje dat vast op de rand van een
-rechthoek "kleeft" (CSS `position: absolute`, geen losse knoppenbalk).
+## 4. Hoe de app en de database synchroon lopen
 
-| Knop | Positie | Werking |
-|---|---|---|
-| **+ processtap** | onderrand van de processtap-rechthoek, net rechts van het midden | voegt een nieuwe (lege) processtap in **direct na** deze stap — werkt op elke stap, niet alleen de laatste, dus ook tussenvoegen kan |
-| **× processtap** | rechterbovenhoek van de processtap-rechthoek | verwijdert deze stap; blijft er nog maar één over, dan wordt die geleegd in plaats van verwijderd (er is altijd minstens 1 processtap) |
-| **+ input** | linkerrand van de processtap-rechthoek, verticaal gecentreerd | voegt een nieuwe (lege) input-rij toe aan deze stap |
-| **+ output** | rechterrand van de processtap-rechthoek, verticaal gecentreerd | voegt een nieuwe (lege) output-rij toe aan deze stap |
-| **+ supplier** | linkerrand van een input-rechthoek | verschijnt alleen als die input nog geen supplier heeft; voegt de supplier toe |
-| **+ customer** | rechterrand van een output-rechthoek | verschijnt alleen als die output nog geen customer heeft; voegt de customer toe |
-| **× input / output / supplier / customer** | rechterbovenhoek van de betreffende rechthoek | verwijdert dat ene onderdeel (bij input/output verdwijnt ook de bijbehorende supplier/customer mee) |
+- Elk onderdeel (proces, stap, input, output) krijgt zijn `id`
+  **client-side** als een echte UUID (`crypto.randomUUID()`), op het
+  moment dat het in de browser wordt aangemaakt — niet pas bij het
+  opslaan. Diezelfde UUID is meteen ook de primary key in de database.
+  Daardoor is elke schrijfactie een simpele **upsert** (bestaat de rij
+  al? dan update; anders insert) op basis van die ene, al bekende id —
+  er is geen aparte "is dit al opgeslagen?"-boekhouding nodig.
+- **Tekst bewerken** (klikken → typen → Enter/weg-klikken) doet precies
+  één upsert van de rij waar dat veld bij hoort.
+- **Toevoegen/verwijderen/tussenvoegen** van een stap, input of output
+  werkt in twee stappen: (1) de rechthoeken meteen lokaal bijwerken en
+  herrenderen (de gebruiker ziet direct resultaat, zonder op het netwerk
+  te wachten), en (2) op de achtergrond alle rijen in die lijst (bv. alle
+  stappen van het proces) opnieuw upserten met hun **huidige
+  array-positie** als `position`-kolom. Zo hoeft er nooit een aparte
+  "verschuif alles op"-berekening gemaakt te worden: de volgorde in de
+  database volgt gewoon de volgorde in het lokale geheugen.
+- **Supplier/customer toevoegen of verwijderen** is geen aparte rij,
+  maar een update van `supplier_label`/`customer_label` op de
+  bijbehorende input/output-rij (zie de NULL/''-logica in deel 3).
+- Bij het **wisselen van proces** (sidebar-klik, of het proces staat al
+  in de link via `?p=<uuid>`) wordt het volledige proces opnieuw
+  opgehaald: het proces zelf, al zijn stappen (op volgorde), en al hun
+  inputs/outputs — en daaruit wordt de diagramstatus opnieuw opgebouwd.
+  De huidige `?p=`-parameter in de adresbalk verandert mee, dus een
+  proces is direct te delen via de link.
+- Elke schrijfactie loopt door één centrale `trackSave()`-helper die de
+  sync-status bijhoudt en fouten afvangt (geen kapotte pagina bij een
+  hapering in de verbinding, wel een zichtbare foutmelding).
 
-## 8. Technische opzet
+## 5. Sidebar-boomstructuur
 
-- Eén bestand, geen dependencies: HTML + inline `<style>` + inline
-  `<script>` (IIFE, vanilla JS, geen frameworks).
-- Render-strategie: elke state-wijziging roept één centrale `render()`
-  aan die het hele bord (`#board`) opnieuw opbouwt als HTML-string en in
-  de DOM zet. Er is bewust geen diffing/virtual DOM — de tool is klein
-  genoeg dat dit simpel en snel genoeg is.
-- Events lopen via **event delegation** op het bord-element: één
-  click-listener leest `data-action`/`data-step`/`data-input`/
-  `data-output`-attributen van de aangeklikte knop, en één
-  `focusout`-listener rondt tekstbewerking af.
-- Geen backend, geen opslag: de status leeft alleen in het geheugen van
-  het browsertabblad en gaat verloren bij een refresh.
-- Bewust nog geen kleurcodering toegepast (grijze rechthoeken voor
-  supplier/input/output/customer, witte met zwarte rand voor de
-  processtap) — dat was expliciet nog niet gevraagd.
+- Alle processen worden eenmalig geladen (`id`, `name`) en client-side
+  gefilterd (zoekbalk, deelstring, hoofdletterongevoelig) en gegroepeerd
+  per beginletter van de naam (alfabetisch op basis van de
+  Nederlandse sorteervolgorde). Naamloze processen (nog geen naam
+  ingevuld) komen in een eigen groep "#" terecht, met het label
+  "Procesnaam" in cursief-grijs.
+- Het actieve proces is gemarkeerd; klikken op een andere naam laadt dat
+  proces (zie deel 4).
 
-## 9. Responsief gedrag
+## 6. Toegang en beveiliging — bewuste afweging
 
-Het bord staat in een container met `overflow-x: auto` en een minimale
-breedte (760px), zodat het diagram op een smal scherm horizontaal
-scrollt in plaats van kapot te vouwen. Verder is de tool primair bedoeld
-voor gebruik op een breder (desktop/tablet) scherm, passend bij het
-soort werk (procesdiagram opbouwen).
+Deze versie heeft **geen inlog**: wie de link naar de pagina heeft, kan
+alle processen zien, bewerken en verwijderen. Dat is expliciet gekozen
+om snel te kunnen starten. Consequenties om in het achterhoofd te
+houden:
 
-## 10. Bewust buiten scope (nu)
+- De Supabase-URL en de `publishable`/`anon`-sleutel staan gewoon
+  zichtbaar in `index.html` (zoals bij elke client-side Supabase-app
+  zonder eigen backend) — dat is op zichzelf geen lek, zólang de
+  RLS-policies kloppen, want die sleutel geeft alleen toegang binnen wat
+  die policies toestaan.
+- Omdat de policies *iedereen* volledig schrijfrecht geven, kan in
+  principe iedereen met de link ook alles verwijderen. Voor een grotere
+  groep gebruikers of gevoeligere content is simpele Supabase Auth
+  (magic link/e-mail) een logische volgende stap — dat vervangt dan de
+  `anon`-policies door policies die op een ingelogde gebruiker filteren.
 
-- Geen opslaan/laden van een diagram (geen backend, geen `localStorage`).
-- Geen export (PNG/PDF/afbeelding).
-- Geen kleurcodering per kolom of per onderdeel.
-- Geen drag-and-drop herordenen van stappen (herordenen kan wel indirect
-  door stappen te verwijderen en op de juiste plek opnieuw toe te voegen).
+## 7. Bewust (nog) buiten scope
+
+- Geen authenticatie/gebruikersbeheer (zie deel 6).
+- Geen export (PNG/PDF/afbeelding) van een SIPOC.
+- Geen kleurcodering per kolom of onderdeel.
+- Geen drag-and-drop herordenen — herordenen kan wel indirect door
+  onderdelen te verwijderen en op de juiste plek opnieuw toe te voegen.
+- Geen samenwerkingsfuncties (bv. zien wie er nog meer in hetzelfde
+  proces aan het kijken/bewerken is, of conflictafhandeling als twee
+  mensen tegelijk hetzelfde proces bewerken) — bij gelijktijdig bewerken
+  door meerdere mensen "wint" gewoon de laatste schrijfactie per veld.

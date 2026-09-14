@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SIPOC Builder</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
 <style>
   :root{
     color-scheme: light;
@@ -21,6 +22,7 @@
     --accent-bg: #eaf2fb;
     --danger: #c0392b;
     --danger-bg: #fbeceb;
+    --border: #e2e4e8;
     --grid-cols:
       minmax(120px,1fr) 30px
       minmax(120px,1fr) 30px
@@ -29,19 +31,176 @@
       minmax(120px,1fr);
   }
   *{ box-sizing: border-box; }
+  html, body{ height: 100%; }
   body{
     margin:0;
     background: var(--bg);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     color: var(--dark-text);
-    padding: 28px 16px 80px;
   }
-  h1{
-    font-size: 18px;
+
+  /* ---------- App shell: sidebar + main ---------- */
+  #app{
+    display:flex;
+    min-height:100vh;
+    align-items:stretch;
+  }
+  #sidebar{
+    flex: 0 0 260px;
+    width: 260px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 20px 14px;
+    display:flex;
+    flex-direction:column;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+  #sidebar h1{
+    font-size: 15px;
     font-weight: 700;
-    text-align: center;
+    margin: 0 0 2px;
+    letter-spacing: .2px;
+  }
+  #sidebar .sidebar-sub{
+    font-size: 11.5px;
+    color: var(--grey-text);
     margin: 0 0 4px;
   }
+  #search{
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--grey-box-border);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    background: var(--bg);
+  }
+  #search:focus{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+    background: #fff;
+  }
+  #new-process-btn{
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 7px;
+    border: 1.5px dashed #b7bac0;
+    background: #fff;
+    color: var(--dark-text);
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #new-process-btn:hover{
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-bg);
+  }
+  #process-tree{
+    flex: 1;
+    overflow-y: auto;
+    margin-top: 4px;
+  }
+  .tree-empty{
+    font-size: 12.5px;
+    color: var(--grey-text);
+    margin: 8px 2px;
+  }
+  .tree-group{ margin-bottom: 6px; }
+  .tree-letter{
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--grey-text);
+    padding: 6px 6px 2px;
+    letter-spacing: .4px;
+  }
+  .tree-item{
+    display:flex;
+    align-items:center;
+    gap: 4px;
+    border-radius: 6px;
+  }
+  .tree-item.active{ background: var(--accent-bg); }
+  .tree-name{
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--dark-text);
+    padding: 6px 6px;
+    cursor: pointer;
+    border-radius: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tree-item.active .tree-name{ color: var(--accent); font-weight: 600; }
+  .tree-name:hover{ background: var(--accent-bg); }
+  .tree-placeholder{ color: var(--grey-text); font-style: italic; }
+  .tree-delete{
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--grey-text);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    opacity: 0;
+  }
+  .tree-item:hover .tree-delete{ opacity: 1; }
+  .tree-delete:hover{ background: var(--danger-bg); color: var(--danger); }
+
+  /* ---------- Main content ---------- */
+  #main{
+    flex: 1;
+    min-width: 0;
+    padding: 28px 24px 80px;
+    overflow-x: auto;
+  }
+  #process-header{
+    max-width: 1180px;
+    margin: 0 auto 22px;
+  }
+  .process-name-row{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+  }
+  .box-process-name{
+    flex: 1;
+    background: #ffffff;
+    border: 1.5px solid var(--process-border);
+    border-radius: 10px;
+    font-size: 17px;
+    font-weight: 700;
+    padding: 12px 16px;
+    text-align: left;
+  }
+  .sync-status{
+    flex: 0 0 auto;
+    font-size: 11.5px;
+    color: var(--grey-text);
+    white-space: nowrap;
+  }
+  .sync-status.saving{ color: var(--accent); }
+  .sync-status.error{ color: var(--danger); font-weight: 600; }
+
   .subtitle{
     text-align:center;
     font-size: 12.5px;
@@ -95,9 +254,6 @@
     row-gap: 12px;
     padding: 14px 0;
     position: relative;
-  }
-  .step-grid + .connector-row{
-    margin-top: -2px;
   }
   .cell{
     position: relative;
@@ -260,13 +416,6 @@
     color: var(--accent);
     background: var(--accent-bg);
   }
-  .addbtn-row{
-    width: 100%;
-    height: 100%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  }
   .step-block{
     position: relative;
     z-index: 1;
@@ -278,22 +427,60 @@
     font-size: 11.5px;
     color: var(--grey-text);
   }
+
+  @media (max-width: 760px){
+    #app{ flex-direction: column; }
+    #sidebar{
+      position: static;
+      width: 100%;
+      flex: 0 0 auto;
+      max-height: 260px;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+    #main{ padding: 20px 16px 60px; }
+  }
 </style>
 </head>
 <body>
 
-<h1>SIPOC</h1>
-<p class="subtitle">Klik op een vak om de tekst aan te passen &middot; gebruik + en &times; om onderdelen toe te voegen of te verwijderen</p>
+<div id="app">
+  <aside id="sidebar">
+    <h1>SIPOC</h1>
+    <p class="sidebar-sub">Alle processen</p>
+    <input id="search" type="search" placeholder="Zoek proces…" autocomplete="off">
+    <button id="new-process-btn" type="button">+ Nieuw proces</button>
+    <div id="process-tree"><p class="tree-empty">Laden…</p></div>
+  </aside>
 
-<div id="board-wrap">
-  <div id="board"></div>
+  <main id="main">
+    <div id="process-header"></div>
+    <div id="board-wrap">
+      <div id="board"></div>
+    </div>
+    <footer>Suppliers &middot; Input &middot; Processtap &middot; Output &middot; Customer</footer>
+  </main>
 </div>
-
-<footer>Suppliers &middot; Input &middot; Processtap &middot; Output &middot; Customer</footer>
 
 <script>
 (function(){
   "use strict";
+
+  // ---------------------------------------------------------------------
+  // Supabase
+  // ---------------------------------------------------------------------
+  var SUPABASE_URL = "https://ijfsmtzopsuenpytomee.supabase.co";
+  var SUPABASE_KEY = "sb_publishable_cN_JXrTeW3lEV5ObhICFpw_GQX9deID";
+
+  if (!window.supabase || !window.supabase.createClient){
+    document.getElementById("app").innerHTML =
+      '<div style="padding:60px 24px;text-align:center;max-width:420px;margin:0 auto;">' +
+        '<p style="font-weight:700;color:#c0392b;margin-bottom:8px;">Kon de database-bibliotheek niet laden</p>' +
+        '<p style="font-size:13px;color:#8a8d93;">Controleer je internetverbinding en herlaad de pagina.</p>' +
+      '</div>';
+    return;
+  }
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   var COLS = {
     supplier: "Supplier",
@@ -303,17 +490,29 @@
     customer: "Customer"
   };
 
-  var uidCounter = 0;
-  function uid(){ uidCounter += 1; return "id" + uidCounter; }
+  function makeId(){
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c){
+      var r = Math.random() * 16 | 0, v = c === "x" ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
 
-  function makeStep(){ return { id: uid(), label: null, inputs: [], outputs: [] }; }
-  function makeInput(){ return { id: uid(), label: null, supplier: null }; }
-  function makeOutput(){ return { id: uid(), label: null, customer: null }; }
-  function makeSupplier(){ return { id: uid(), label: null }; }
-  function makeCustomer(){ return { id: uid(), label: null }; }
+  function makeStep(){ return { id: makeId(), label: null, inputs: [], outputs: [] }; }
+  function makeInput(){ return { id: makeId(), label: null, supplier: null }; }
+  function makeOutput(){ return { id: makeId(), label: null, customer: null }; }
+  function makeSupplier(){ return { id: makeId(), label: null }; }
+  function makeCustomer(){ return { id: makeId(), label: null }; }
 
-  var state = { steps: [ makeStep() ] };
+  // Current SIPOC being edited
+  var state = { processId: null, processName: null, steps: [ makeStep() ] };
+  // All processes, for the sidebar tree: [{id, name}]
+  var processList = [];
+  var searchText = "";
 
+  // ---------------------------------------------------------------------
+  // Small helpers
+  // ---------------------------------------------------------------------
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, function(c){
       return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c];
@@ -335,12 +534,6 @@
     return '<button class="minus ' + (extraClass||'') + '" data-action="' + action + '"' + attrStr + ' title="Verwijderen">&times;</button>';
   }
 
-  function addBtn(action, attrs, title){
-    var attrStr = "";
-    for (var k in attrs){ attrStr += ' data-' + k + '="' + attrs[k] + '"'; }
-    return '<button class="addbtn" data-action="' + action + '"' + attrStr + ' title="' + title + '">+</button>';
-  }
-
   function edgeAddBtn(action, attrs, title, side){
     var attrStr = "";
     for (var k in attrs){ attrStr += ' data-' + k + '="' + attrs[k] + '"'; }
@@ -351,6 +544,9 @@
     return '<div class="arrow-cell"><div class="arrow-h"></div></div>';
   }
 
+  // ---------------------------------------------------------------------
+  // Board rendering (grid, guides, headers, step blocks)
+  // ---------------------------------------------------------------------
   function renderGuides(){
     return (
       '<div class="grid-guides">' +
@@ -467,7 +663,7 @@
 
     var blockHtml = '<div class="step-grid">' + rowsHtml + '</div>';
 
-    // control row: just the connector line down to the next step (add-input/add-output now live on the process box itself)
+    // control row: just the connector line down to the next step (add-input/add-output live on the process box itself)
     var isLast = sIdx === state.steps.length - 1;
     var controlHtml = isLast ? '' :
       '<div class="step-grid" style="row-gap:0;">' +
@@ -485,21 +681,263 @@
     document.getElementById("board").innerHTML = html;
   }
 
+  function renderProcessHeader(){
+    var wrap = document.getElementById("process-header");
+    wrap.innerHTML =
+      '<div class="process-name-row">' +
+        box({ label: state.processName, placeholder: "Procesnaam", path: "process.name", extraClass: "box-process-name" }) +
+        '<span id="sync-status" class="sync-status idle">Opgeslagen</span>' +
+      '</div>';
+  }
+
+  function renderAll(){
+    renderProcessHeader();
+    render();
+    renderSidebar();
+  }
+
+  // ---------------------------------------------------------------------
+  // Sidebar: search + alphabetical tree of processes
+  // ---------------------------------------------------------------------
+  function renderSidebar(){
+    var el = document.getElementById("process-tree");
+    if (!el) return;
+    var q = searchText.trim().toLowerCase();
+    var filtered = processList.filter(function(p){
+      var name = (p.name || "procesnaam").toLowerCase();
+      return name.indexOf(q) !== -1;
+    });
+    filtered.sort(function(a, b){
+      return (a.name || "").localeCompare(b.name || "", "nl", { sensitivity: "base" });
+    });
+    if (filtered.length === 0){
+      el.innerHTML = '<p class="tree-empty">Geen processen gevonden.</p>';
+      return;
+    }
+    var groups = {};
+    var order = [];
+    filtered.forEach(function(p){
+      var letter = (p.name || "").trim().charAt(0).toUpperCase();
+      if (!letter || !/[A-Z]/.test(letter)) letter = "#";
+      if (!groups[letter]){ groups[letter] = []; order.push(letter); }
+      groups[letter].push(p);
+    });
+    order.sort();
+    var html = "";
+    order.forEach(function(letter){
+      html += '<div class="tree-group"><div class="tree-letter">' + letter + '</div>';
+      groups[letter].forEach(function(p){
+        var name = p.name ? escapeHtml(p.name) : '<span class="tree-placeholder">Procesnaam</span>';
+        var activeClass = p.id === state.processId ? " active" : "";
+        html +=
+          '<div class="tree-item' + activeClass + '">' +
+            '<button class="tree-name" data-action="selectProcess" data-process="' + p.id + '">' + name + '</button>' +
+            '<button class="tree-delete" data-action="deleteProcess" data-process="' + p.id + '" title="Proces verwijderen">&times;</button>' +
+          '</div>';
+      });
+      html += "</div>";
+    });
+    el.innerHTML = html;
+  }
+
+  // ---------------------------------------------------------------------
+  // Supabase sync: one upsert per entity, always keyed by its own uuid.
+  // Structural changes (add/remove/insert) re-sync the whole ordered list
+  // of siblings so `position` always matches the array index.
+  // ---------------------------------------------------------------------
+  var pendingSaves = 0;
+  function setSyncStatus(kind){
+    var el = document.getElementById("sync-status");
+    if (!el) return;
+    if (kind === "saving"){ el.textContent = "Bezig met opslaan…"; el.className = "sync-status saving"; }
+    else if (kind === "error"){ el.textContent = "Opslaan mislukt — controleer je verbinding"; el.className = "sync-status error"; }
+    else { el.textContent = "Opgeslagen"; el.className = "sync-status idle"; }
+  }
+
+  function trackSave(queryBuilder){
+    pendingSaves++;
+    setSyncStatus("saving");
+    return Promise.resolve(queryBuilder).then(function(res){
+      pendingSaves = Math.max(0, pendingSaves - 1);
+      if (res && res.error){
+        console.error("Supabase sync error:", res.error);
+        setSyncStatus("error");
+        return;
+      }
+      if (pendingSaves === 0) setSyncStatus("idle");
+    }, function(err){
+      pendingSaves = Math.max(0, pendingSaves - 1);
+      console.error("Supabase sync error:", err);
+      setSyncStatus("error");
+    });
+  }
+
+  function supplierValue(input){ return input.supplier === null ? null : (input.supplier.label || ""); }
+  function customerValue(output){ return output.customer === null ? null : (output.customer.label || ""); }
+
+  function syncProcessName(){
+    return trackSave(sb.from("processes").upsert({
+      id: state.processId, name: state.processName, updated_at: new Date().toISOString()
+    }));
+  }
+  function syncStep(step){
+    var idx = state.steps.indexOf(step);
+    if (idx === -1) return Promise.resolve();
+    return trackSave(sb.from("sipoc_steps").upsert({
+      id: step.id, process_id: state.processId, position: idx, label: step.label
+    }));
+  }
+  function syncStepsOrder(){
+    return Promise.all(state.steps.map(function(step, i){
+      return trackSave(sb.from("sipoc_steps").upsert({
+        id: step.id, process_id: state.processId, position: i, label: step.label
+      }));
+    }));
+  }
+  function syncInput(step, input){
+    var idx = step.inputs.indexOf(input);
+    if (idx === -1) return Promise.resolve();
+    return trackSave(sb.from("sipoc_inputs").upsert({
+      id: input.id, step_id: step.id, position: idx, label: input.label, supplier_label: supplierValue(input)
+    }));
+  }
+  function syncInputsOrder(step){
+    return Promise.all(step.inputs.map(function(input, i){
+      return trackSave(sb.from("sipoc_inputs").upsert({
+        id: input.id, step_id: step.id, position: i, label: input.label, supplier_label: supplierValue(input)
+      }));
+    }));
+  }
+  function syncOutput(step, output){
+    var idx = step.outputs.indexOf(output);
+    if (idx === -1) return Promise.resolve();
+    return trackSave(sb.from("sipoc_outputs").upsert({
+      id: output.id, step_id: step.id, position: idx, label: output.label, customer_label: customerValue(output)
+    }));
+  }
+  function syncOutputsOrder(step){
+    return Promise.all(step.outputs.map(function(output, i){
+      return trackSave(sb.from("sipoc_outputs").upsert({
+        id: output.id, step_id: step.id, position: i, label: output.label, customer_label: customerValue(output)
+      }));
+    }));
+  }
+  function deleteStepRow(id){ return trackSave(sb.from("sipoc_steps").delete().eq("id", id)); }
+  function deleteInputRow(id){ return trackSave(sb.from("sipoc_inputs").delete().eq("id", id)); }
+  function deleteOutputRow(id){ return trackSave(sb.from("sipoc_outputs").delete().eq("id", id)); }
+
+  // ---------------------------------------------------------------------
+  // Loading / switching / creating / deleting processes
+  // ---------------------------------------------------------------------
+  function fetchProcessList(){
+    return sb.from("processes").select("id,name").then(function(res){
+      if (res.error){ console.error(res.error); processList = []; return; }
+      processList = res.data || [];
+    });
+  }
+
+  function loadProcess(id){
+    setSyncStatus("saving");
+    return sb.from("processes").select("*").eq("id", id).single().then(function(procRes){
+      if (procRes.error || !procRes.data){ console.error(procRes.error); setSyncStatus("error"); return false; }
+      var proc = procRes.data;
+      return sb.from("sipoc_steps").select("*").eq("process_id", id).order("position").then(function(stepsRes){
+        var stepsRows = stepsRes.data || [];
+        var stepIds = stepsRows.map(function(s){ return s.id; });
+        var inputsP = stepIds.length ? sb.from("sipoc_inputs").select("*").in("step_id", stepIds).order("position") : Promise.resolve({ data: [] });
+        var outputsP = stepIds.length ? sb.from("sipoc_outputs").select("*").in("step_id", stepIds).order("position") : Promise.resolve({ data: [] });
+        return Promise.all([inputsP, outputsP]).then(function(results){
+          var inputsRows = results[0].data || [];
+          var outputsRows = results[1].data || [];
+          var steps = stepsRows.map(function(row){
+            return {
+              id: row.id,
+              label: row.label,
+              inputs: inputsRows.filter(function(i){ return i.step_id === row.id; }).map(function(i){
+                return { id: i.id, label: i.label, supplier: i.supplier_label === null ? null : { id: makeId(), label: i.supplier_label || null } };
+              }),
+              outputs: outputsRows.filter(function(o){ return o.step_id === row.id; }).map(function(o){
+                return { id: o.id, label: o.label, customer: o.customer_label === null ? null : { id: makeId(), label: o.customer_label || null } };
+              })
+            };
+          });
+          var seededDefault = false;
+          if (steps.length === 0){ steps = [ makeStep() ]; seededDefault = true; }
+
+          state.processId = proc.id;
+          state.processName = proc.name;
+          state.steps = steps;
+
+          var url = new URL(window.location.href);
+          url.searchParams.set("p", proc.id);
+          window.history.replaceState(null, "", url);
+
+          renderAll();
+          setSyncStatus("idle");
+          if (seededDefault) syncStepsOrder();
+          return true;
+        });
+      });
+    });
+  }
+
+  function selectProcess(id){
+    if (id === state.processId) return Promise.resolve();
+    return loadProcess(id);
+  }
+
+  function createNewProcess(){
+    var id = makeId();
+    var stepId = makeId();
+    return trackSave(sb.from("processes").insert({ id: id, name: null }))
+      .then(function(){ return trackSave(sb.from("sipoc_steps").insert({ id: stepId, process_id: id, position: 0, label: null })); })
+      .then(fetchProcessList)
+      .then(function(){ return loadProcess(id); })
+      .then(function(){
+        var nameBox = document.querySelector(".box-process-name");
+        if (nameBox) startEdit(nameBox);
+      });
+  }
+
+  function deleteProcess(id){
+    if (!window.confirm("Dit proces en de bijbehorende SIPOC volledig verwijderen? Dit kan niet ongedaan worden gemaakt.")) return;
+    trackSave(sb.from("processes").delete().eq("id", id)).then(function(){
+      processList = processList.filter(function(p){ return p.id !== id; });
+      if (state.processId === id){
+        if (processList.length){
+          var next = processList.slice().sort(function(a, b){
+            return (a.name || "").localeCompare(b.name || "", "nl", { sensitivity: "base" });
+          })[0];
+          loadProcess(next.id);
+        } else {
+          createNewProcess();
+        }
+      } else {
+        renderSidebar();
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Editable-box path resolution + edit lifecycle
+  // ---------------------------------------------------------------------
   function getByPath(path){
-    // path like "0.label" or "0.input.2.supplier.label"
+    if (path === "process.name"){
+      return { kind: "process", obj: state, key: "processName" };
+    }
     var parts = path.split(".");
     var stepIdx = parseInt(parts[0], 10);
     var step = state.steps[stepIdx];
-    if (parts.length === 2) return { obj: step, key: parts[1] };
+    if (parts.length === 2) return { kind: "step", obj: step, key: parts[1], step: step };
     if (parts[1] === "input"){
       var inp = step.inputs[parseInt(parts[2], 10)];
-      if (parts.length === 4) return { obj: inp, key: parts[3] };
-      if (parts[3] === "supplier") return { obj: inp.supplier, key: parts[4] };
+      if (parts.length === 4) return { kind: "input", obj: inp, key: parts[3], step: step, input: inp };
+      if (parts[3] === "supplier") return { kind: "supplier", obj: inp.supplier, key: parts[4], step: step, input: inp };
     }
     if (parts[1] === "output"){
       var out = step.outputs[parseInt(parts[2], 10)];
-      if (parts.length === 4) return { obj: out, key: parts[3] };
-      if (parts[3] === "customer") return { obj: out.customer, key: parts[4] };
+      if (parts.length === 4) return { kind: "output", obj: out, key: parts[3], step: step, output: out };
+      if (parts[3] === "customer") return { kind: "customer", obj: out.customer, key: parts[4], step: step, output: out };
     }
     return null;
   }
@@ -510,7 +948,6 @@
       el.textContent = "";
     }
     el.focus();
-    // place cursor at end
     var range = document.createRange();
     range.selectNodeContents(el);
     range.collapse(false);
@@ -524,15 +961,39 @@
     var ref = getByPath(path);
     var value = el.textContent.replace(/\s+/g, " ").trim();
     el.setAttribute("contenteditable", "false");
-    if (ref && ref.obj){
-      ref.obj[ref.key] = value.length ? value : null;
+    if (!ref || !ref.obj){ return; }
+    ref.obj[ref.key] = value.length ? value : null;
+
+    switch (ref.kind){
+      case "process":
+        syncProcessName();
+        var entry = processList.filter(function(p){ return p.id === state.processId; })[0];
+        if (entry) entry.name = state.processName;
+        renderSidebar();
+        break;
+      case "step":
+        syncStep(ref.step);
+        break;
+      case "input":
+      case "supplier":
+        syncInput(ref.step, ref.input);
+        break;
+      case "output":
+      case "customer":
+        syncOutput(ref.step, ref.output);
+        break;
     }
     render();
+    if (ref.kind === "process") renderProcessHeader();
   }
 
-  var board = document.getElementById("board");
+  // ---------------------------------------------------------------------
+  // Event delegation (click / edit) on #main — covers the process-name
+  // header box as well as the whole board
+  // ---------------------------------------------------------------------
+  var main = document.getElementById("main");
 
-  board.addEventListener("click", function(e){
+  main.addEventListener("click", function(e){
     var boxEl = e.target.closest(".box");
     if (boxEl && boxEl.getAttribute("contenteditable") !== "true"){
       startEdit(boxEl);
@@ -550,52 +1011,76 @@
     switch (action){
       case "addStep":
         state.steps.splice(stepIdx + 1, 0, makeStep());
+        render();
+        syncStepsOrder();
         break;
       case "removeStep":
         if (state.steps.length > 1){
-          state.steps.splice(stepIdx, 1);
+          var removedStep = state.steps.splice(stepIdx, 1)[0];
+          render();
+          deleteStepRow(removedStep.id).then(syncStepsOrder);
         } else {
+          var oldStep = state.steps[0];
           state.steps[0] = makeStep();
+          render();
+          deleteStepRow(oldStep.id).then(syncStepsOrder);
         }
         break;
       case "addInput":
         step.inputs.push(makeInput());
+        render();
+        syncInputsOrder(step);
         break;
-      case "removeInput":
-        step.inputs.splice(inputIdx, 1);
+      case "removeInput": {
+        var removedInput = step.inputs.splice(inputIdx, 1)[0];
+        render();
+        deleteInputRow(removedInput.id).then(function(){ syncInputsOrder(step); });
         break;
+      }
       case "addSupplier":
         step.inputs[inputIdx].supplier = makeSupplier();
+        render();
+        syncInput(step, step.inputs[inputIdx]);
         break;
       case "removeSupplier":
         step.inputs[inputIdx].supplier = null;
+        render();
+        syncInput(step, step.inputs[inputIdx]);
         break;
       case "addOutput":
         step.outputs.push(makeOutput());
+        render();
+        syncOutputsOrder(step);
         break;
-      case "removeOutput":
-        step.outputs.splice(outputIdx, 1);
+      case "removeOutput": {
+        var removedOutput = step.outputs.splice(outputIdx, 1)[0];
+        render();
+        deleteOutputRow(removedOutput.id).then(function(){ syncOutputsOrder(step); });
         break;
+      }
       case "addCustomer":
         step.outputs[outputIdx].customer = makeCustomer();
+        render();
+        syncOutput(step, step.outputs[outputIdx]);
         break;
       case "removeCustomer":
         step.outputs[outputIdx].customer = null;
+        render();
+        syncOutput(step, step.outputs[outputIdx]);
         break;
       default:
         return;
     }
-    render();
   });
 
-  board.addEventListener("focusout", function(e){
+  main.addEventListener("focusout", function(e){
     var boxEl = e.target.closest(".box");
     if (boxEl && boxEl.getAttribute("contenteditable") === "true"){
       finishEdit(boxEl);
     }
   });
 
-  board.addEventListener("keydown", function(e){
+  main.addEventListener("keydown", function(e){
     var boxEl = e.target.closest(".box");
     if (!boxEl) return;
     if (e.key === "Enter"){
@@ -607,7 +1092,46 @@
     }
   });
 
-  render();
+  // ---------------------------------------------------------------------
+  // Sidebar events (search + tree clicks, delegated)
+  // ---------------------------------------------------------------------
+  document.getElementById("search").addEventListener("input", function(e){
+    searchText = e.target.value;
+    renderSidebar();
+  });
+
+  document.getElementById("new-process-btn").addEventListener("click", createNewProcess);
+
+  document.getElementById("process-tree").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    var action = btn.getAttribute("data-action");
+    var pid = btn.getAttribute("data-process");
+    if (action === "selectProcess") selectProcess(pid);
+    else if (action === "deleteProcess") deleteProcess(pid);
+  });
+
+  // ---------------------------------------------------------------------
+  // Init
+  // ---------------------------------------------------------------------
+  function init(){
+    fetchProcessList().then(function(){
+      renderSidebar();
+      var params = new URLSearchParams(window.location.search);
+      var wantedId = params.get("p");
+      var target = null;
+      if (wantedId && processList.some(function(p){ return p.id === wantedId; })) target = wantedId;
+      else if (processList.length){
+        target = processList.slice().sort(function(a, b){
+          return (a.name || "").localeCompare(b.name || "", "nl", { sensitivity: "base" });
+        })[0].id;
+      }
+      if (target) return loadProcess(target);
+      return createNewProcess();
+    });
+  }
+
+  init();
 })();
 </script>
 
