@@ -54,10 +54,14 @@ van een proces of stap automatisch alles daaronder opruimt):
 
 ```
 processes
-  id          uuid primary key
-  name        text
-  created_at  timestamptz
-  updated_at  timestamptz
+  id                 uuid primary key
+  name               text
+  description        text         -- vrije, meerregelige omschrijving
+  version             text        -- start standaard op '0.1'
+  goal_description    text        -- vrije, meerregelige doelomschrijving
+  owner_id             uuid  → process_owners(id)  on delete set null
+  created_at          timestamptz
+  updated_at          timestamptz
 
 sipoc_steps
   id            uuid primary key
@@ -96,6 +100,11 @@ communication_types            -- "stamtabel" voor soort communicatie
   id          uuid primary key
   name        text unique (hoofdletterongevoelig)
   created_at  timestamptz       -- voorgevuld met E-mail, Telefoon, Systeem
+
+process_owners                 -- "stamtabel" voor proceseigenaren
+  id          uuid primary key
+  name        text unique (hoofdletterongevoelig)
+  created_at  timestamptz       -- geen vaste startset
 ```
 
 `sipoc_inputs` en `sipoc_outputs` krijgen daarnaast elk extra kolommen
@@ -261,6 +270,27 @@ hernoemen) opent een formulier met:
 In tegenstelling tot supplier/customer (deel 5b) blijft de rechthoek hier
 gewoon het (vrije) label tonen — de soort communicatie is aanvullende
 informatie, geen vervanging van wat er op het vak staat.
+
+## 5d. Het proces zelf: omschrijving, versie, doel en eigenaar
+
+Dubbelklikken op de procesnaam-rechthoek bovenaan (een enkele klik blijft
+gewoon rechtstreeks de naam hernoemen, zoals nu al het geval was) opent
+een formulier met, in deze volgorde:
+
+1. **Omschrijving** — vrije, meerregelige tekst over het proces.
+2. **Versienummer** — vrij tekstveld; een nieuw proces start standaard op
+   **"0.1"**.
+3. **Doelomschrijving** — vrije, meerregelige tekst over het doel van het
+   proces.
+4. **Proceseigenaar** — een keuzelijst uit een nieuwe `process_owners`-
+   stamtabel, met dezelfde **···**-beheerknop om zelf eigenaren toe te
+   voegen of te verwijderen (hier geen vaste startset, in tegenstelling
+   tot Externe partijen/Communicatiesoorten).
+
+Deze vier velden leven direct op de `processes`-rij zelf (`description`,
+`version`, `goal_description`, `owner_id` → `process_owners(id)`
+`on delete set null`) en worden, net als de procesnaam, in één upsert
+(`syncProcess`) samen opgeslagen.
 
 ## 6. Toegang en beveiliging — bewuste afweging
 

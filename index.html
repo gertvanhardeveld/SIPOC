@@ -691,7 +691,11 @@
   function makeCustomer(){ return { id: makeId(), label: null, kind: null, functionId: null, externalId: null }; }
 
   // Current SIPOC being edited
-  var state = { processId: null, processName: null, steps: [ makeStep() ] };
+  var state = {
+    processId: null, processName: null,
+    processDescription: null, processVersion: null, processGoal: null, processOwnerId: null,
+    steps: [ makeStep() ]
+  };
   // All processes, for the sidebar tree: [{id, name}]
   var processList = [];
   var searchText = "";
@@ -699,6 +703,7 @@
   var functionsList = [];
   var externalPartiesList = [];
   var communicationTypesList = [];
+  var processOwnersList = [];
 
   // ---------------------------------------------------------------------
   // Small helpers
@@ -982,9 +987,12 @@
   function supplierValue(input){ return input.supplier === null ? null : (input.supplier.label || ""); }
   function customerValue(output){ return output.customer === null ? null : (output.customer.label || ""); }
 
-  function syncProcessName(){
+  function syncProcess(){
     return trackSave(sb.from("processes").upsert({
-      id: state.processId, name: state.processName, updated_at: new Date().toISOString()
+      id: state.processId, name: state.processName,
+      description: state.processDescription, version: state.processVersion,
+      goal_description: state.processGoal, owner_id: state.processOwnerId,
+      updated_at: new Date().toISOString()
     }));
   }
   function syncStep(step){
@@ -1144,6 +1152,35 @@
   }
 
   // ---------------------------------------------------------------------
+  // Process owners master table ("stamtabel"): shared across all processes
+  // ---------------------------------------------------------------------
+  function fetchProcessOwners(){
+    return sb.from("process_owners").select("id,name").then(function(res){
+      if (res.error){ console.error(res.error); processOwnersList = []; return; }
+      processOwnersList = (res.data || []).slice().sort(function(a, b){
+        return (a.name || "").localeCompare(b.name || "", "nl", { sensitivity: "base" });
+      });
+    });
+  }
+
+  function createProcessOwner(name){
+    var trimmed = name.trim();
+    if (!trimmed) return Promise.resolve(null);
+    var id = makeId();
+    return trackSave(sb.from("process_owners").insert({ id: id, name: trimmed })).then(function(){
+      return fetchProcessOwners().then(function(){ return id; });
+    });
+  }
+
+  function deleteProcessOwnerRow(id){
+    return trackSave(sb.from("process_owners").delete().eq("id", id)).then(function(){
+      return fetchProcessOwners().then(function(){
+        if (state.processOwnerId === id) state.processOwnerId = null;
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------
   // Loading / switching / creating / deleting processes
   // ---------------------------------------------------------------------
   function fetchProcessList(){
@@ -1191,6 +1228,10 @@
 
           state.processId = proc.id;
           state.processName = proc.name;
+          state.processDescription = proc.description;
+          state.processVersion = proc.version;
+          state.processGoal = proc.goal_description;
+          state.processOwnerId = proc.owner_id;
           state.steps = steps;
 
           var url = new URL(window.location.href);
@@ -1214,7 +1255,7 @@
   function createNewProcess(){
     var id = makeId();
     var stepId = makeId();
-    return trackSave(sb.from("processes").insert({ id: id, name: null }))
+    return trackSave(sb.from("processes").insert({ id: id, name: null, version: "0.1" }))
       .then(function(){ return trackSave(sb.from("sipoc_steps").insert({ id: stepId, process_id: id, position: 0, label: null })); })
       .then(fetchProcessList)
       .then(function(){ return loadProcess(id); })
@@ -1295,7 +1336,7 @@
         // #board here: rebuilding it mid-click (e.g. right after "+ Nieuw
         // proces" auto-focused this field) would replace the very box the
         // user is about to click, and the browser silently drops that click.
-        syncProcessName();
+        syncProcess();
         var entry = processList.filter(function(p){ return p.id === state.processId; })[0];
         if (entry) entry.name = state.processName;
         renderProcessHeader();
@@ -1732,6 +1773,124 @@
   }
 
   // ---------------------------------------------------------------------
+  // Process detail modal: omschrijving, versienummer, doelomschrijving en
+  // proceseigenaar — double-click on the process-name header box opens it
+  // (single click there still just renames the process, as before).
+  // ---------------------------------------------------------------------
+  function processOwnerOptionsHtml(selectedId){
+    var html = '<option value="">— geen eigenaar —</option>';
+    processOwnersList.forEach(function(o){
+      html += '<option value="' + o.id + '"' + (o.id === selectedId ? ' selected' : '') + '>' + escapeHtml(o.name) + '</option>';
+    });
+    return html;
+  }
+
+  function openProcessOwnersModal(onChange){
+    openMasterListModal({
+      overlayId: "owners-modal-overlay",
+      title: "Proceseigenaren beheren",
+      getList: function(){ return processOwnersList; },
+      createItem: createProcessOwner,
+      deleteItem: deleteProcessOwnerRow,
+      placeholder: "Nieuwe proceseigenaar…",
+      onChange: onChange
+    });
+  }
+
+  function openProcessModal(){
+    closeModal(document.getElementById("process-modal-overlay"));
+
+    var overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.id = "process-modal-overlay";
+    var title = state.processName ? escapeHtml(state.processName) : "Naamloos proces";
+    overlay.innerHTML =
+      '<div class="modal-panel">' +
+        '<div class="modal-header">' +
+          '<h2>Details &mdash; <em>' + title + '</em></h2>' +
+          '<button type="button" class="modal-close" id="process-modal-close" title="Sluiten">&times;</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<div class="modal-field">' +
+            '<label for="process-desc">Omschrijving</label>' +
+            '<textarea id="process-desc" placeholder="Beschrijf hier het proces…">' + (state.processDescription ? escapeHtml(state.processDescription) : "") + '</textarea>' +
+          '</div>' +
+          '<div class="modal-field">' +
+            '<label for="process-version">Versienummer</label>' +
+            '<input type="text" id="process-version" value="' + escapeHtml(state.processVersion || "0.1") + '" placeholder="0.1" autocomplete="off">' +
+          '</div>' +
+          '<div class="modal-field">' +
+            '<label for="process-goal">Doelomschrijving</label>' +
+            '<textarea id="process-goal" placeholder="Wat is het doel van dit proces?">' + (state.processGoal ? escapeHtml(state.processGoal) : "") + '</textarea>' +
+          '</div>' +
+          '<div class="modal-field">' +
+            '<label for="process-owner">Proceseigenaar</label>' +
+            '<div class="modal-function-row">' +
+              '<select id="process-owner">' + processOwnerOptionsHtml(state.processOwnerId) + '</select>' +
+              '<button type="button" class="ellipsis-btn" id="process-owner-manage" title="Proceseigenaren beheren">&hellip;</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    var descEl = overlay.querySelector("#process-desc");
+    var versionEl = overlay.querySelector("#process-version");
+    var goalEl = overlay.querySelector("#process-goal");
+    var ownerSelect = overlay.querySelector("#process-owner");
+
+    function persist(){ syncProcess(); }
+
+    function saveDesc(){
+      var trimmed = descEl.value.trim();
+      state.processDescription = trimmed.length ? trimmed : null;
+      persist();
+    }
+    descEl.addEventListener("blur", saveDesc);
+
+    function saveVersion(){
+      var trimmed = versionEl.value.trim();
+      state.processVersion = trimmed.length ? trimmed : null;
+      persist();
+    }
+    versionEl.addEventListener("blur", saveVersion);
+
+    function saveGoal(){
+      var trimmed = goalEl.value.trim();
+      state.processGoal = trimmed.length ? trimmed : null;
+      persist();
+    }
+    goalEl.addEventListener("blur", saveGoal);
+
+    ownerSelect.addEventListener("change", function(){
+      state.processOwnerId = ownerSelect.value || null;
+      persist();
+    });
+
+    overlay.querySelector("#process-owner-manage").addEventListener("click", function(){
+      openProcessOwnersModal(function(newId){
+        if (newId) state.processOwnerId = newId;
+        ownerSelect.innerHTML = processOwnerOptionsHtml(state.processOwnerId);
+        if (newId) persist();
+      });
+    });
+
+    function onKeydown(e){ if (e.key === "Escape") close(); }
+    function close(){
+      saveDesc();
+      saveVersion();
+      saveGoal();
+      closeModal(overlay);
+      document.removeEventListener("keydown", onKeydown);
+    }
+    overlay.querySelector("#process-modal-close").addEventListener("click", close);
+    overlay.addEventListener("mousedown", function(e){ if (e.target === overlay) close(); });
+    document.addEventListener("keydown", onKeydown);
+
+    descEl.focus();
+  }
+
+  // ---------------------------------------------------------------------
   // Event delegation (click / edit) on #main — covers the process-name
   // header box as well as the whole board
   // ---------------------------------------------------------------------
@@ -1829,13 +1988,15 @@
     // same single-click handling twice, which is harmless. Process-step,
     // input and output rectangles still distinguish single (rename) from
     // double (open form) click.
-    var boxEl = e.target.closest(".box-process, .box-input, .box-output");
+    var boxEl = e.target.closest(".box-process, .box-input, .box-output, .box-process-name");
     if (!boxEl) return;
     e.preventDefault();
     if (boxEl.getAttribute("contenteditable") === "true"){
       boxEl.blur(); // cleanly commits/ends the inline edit the two clicks just started
     }
-    if (boxEl.classList.contains("box-process")){
+    if (boxEl.classList.contains("box-process-name")){
+      openProcessModal();
+    } else if (boxEl.classList.contains("box-process")){
       openStepModal(parseInt(boxEl.getAttribute("data-path").split(".")[0], 10));
     } else {
       openFieldModal(boxEl.getAttribute("data-path"));
@@ -1884,7 +2045,7 @@
   // Init
   // ---------------------------------------------------------------------
   function init(){
-    Promise.all([fetchProcessList(), fetchFunctions(), fetchExternalParties(), fetchCommunicationTypes()]).then(function(){
+    Promise.all([fetchProcessList(), fetchFunctions(), fetchExternalParties(), fetchCommunicationTypes(), fetchProcessOwners()]).then(function(){
       renderSidebar();
       var params = new URLSearchParams(window.location.search);
       var wantedId = params.get("p");
