@@ -48,7 +48,7 @@ er is geen aparte "opslaan"-knop.
 
 ## 3. Databaseschema (Supabase/Postgres)
 
-Vier tabellen, met echte foreign keys die de relaties tussen de
+Vijf tabellen, met echte foreign keys die de relaties tussen de
 SIPOC-onderdelen vastleggen (`on delete cascade`, zodat het verwijderen
 van een proces of stap automatisch alles daaronder opruimt):
 
@@ -60,10 +60,12 @@ processes
   updated_at  timestamptz
 
 sipoc_steps
-  id          uuid primary key
-  process_id  uuid  → processes(id)  on delete cascade
-  position    integer      -- volgorde binnen het proces
-  label       text
+  id            uuid primary key
+  process_id    uuid  → processes(id)  on delete cascade
+  position      integer      -- volgorde binnen het proces
+  label         text
+  instructions  text         -- werkinstructie: vrije tekst, meerdere regels
+  function_id   uuid  → functions(id)  on delete set null
 
 sipoc_inputs
   id              uuid primary key
@@ -79,13 +81,20 @@ sipoc_outputs
   position        integer
   label           text
   customer_label  text         -- zelfde NULL/''/tekst-logica als supplier
+
+functions                      -- "stamtabel": los van één proces, herbruikbaar
+  id          uuid primary key
+  name        text unique (hoofdletterongevoelig)
+  created_at  timestamptz
 ```
 
 Supplier en customer zijn bewust geen eigen tabellen: het zijn 1-op-1
 eigenschappen van precies één input, resp. output (zoals in de tool
 zelf), dus een kolom op dezelfde rij volstaat en houdt joins simpel.
+`functions` is dat wél, omdat het bewust gedeeld/herbruikbaar moet zijn
+over alle processen heen (zie deel 5a).
 
-**RLS (Row Level Security)**: staat aan op alle vier tabellen, met een
+**RLS (Row Level Security)**: staat aan op alle vijf tabellen, met een
 policy die de `anon`-rol (dus: iedereen met de link, geen login) volledig
 lees- en schrijfrecht geeft. Dat is een bewuste keuze voor een interne
 tool zonder authenticatie — zie deel 6 hieronder voor de afweging.
@@ -132,6 +141,38 @@ tool zonder authenticatie — zie deel 6 hieronder voor de afweging.
   "Procesnaam" in cursief-grijs.
 - Het actieve proces is gemarkeerd; klikken op een andere naam laadt dat
   proces (zie deel 4).
+
+## 5a. Stapdetails: werkinstructie en functie
+
+Dubbelklikken op een processtap-rechthoek (niet: enkel klikken — dat blijft
+gewoon de stapnaam hernoemen) opent een formulier met:
+
+- **Werkinstructie**: een vrij, meerregelig tekstveld. Slaat op bij het
+  sluiten van het formulier of bij het verlaten van het veld.
+- **Functie**: een keuzelijst die put uit de `functions`-stamtabel, plus
+  een **···**-knop ernaast om die stamtabel te beheren (functies
+  toevoegen/verwijderen) zonder het formulier te hoeven sluiten. Een
+  net aangemaakte functie wordt meteen als keuze voor déze stap
+  geselecteerd. Wordt een functie uit de stamtabel verwijderd, dan
+  verliezen alle stappen die hem gebruikten gewoon hun koppeling (de
+  stap zelf blijft bestaan — zie `on delete set null` in deel 3).
+- Sluiten kan via het kruisje, de Escape-toets, of door naast het
+  formulier te klikken.
+- "Later komen hier nog meer velden bij" (opdrachtgever): het formulier
+  is bewust simpel gehouden zodat een volgend veld er zonder
+  herstructurering bij kan.
+
+**Technische kanttekening (klik- vs. dubbelklikgedrag):** een enkele klik
+opent meteen bewerken (zoals overal in de tool); een `dblclick` op
+dezelfde rechthoek ontstaat dus na twee van die enkele klikken. Om de
+gewone enkele klik niet te vertragen (geen kunstmatige wachttijd om een
+eventuele tweede klik af te wachten) grijpt de `dblclick`-handler simpelweg
+in: hij rondt de net-gestarte inline-bewerking netjes af (`blur()`) en
+opent daarna het formulier. Een aparte bug die dit blootlegde — een
+naamwijziging van het proces bovenaan de pagina herbouwde per ongeluk ook
+het hele bord, wat een gelijktijdige klik op een processtap kon laten
+verdwijnen — is opgelost door die twee volledig los van elkaar te
+renderen.
 
 ## 6. Toegang en beveiliging — bewuste afweging
 

@@ -428,6 +428,162 @@
     color: var(--grey-text);
   }
 
+  /* ---------- Step detail modal ---------- */
+  .modal-overlay{
+    position: fixed;
+    inset: 0;
+    background: rgba(36,38,43,.45);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-overlay.modal-nested{ z-index: 110; }
+  .modal-panel{
+    background: #fff;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 480px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  }
+  .modal-panel-sm{ max-width: 360px; }
+  .modal-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-header h2{
+    font-size: 15px;
+    margin: 0;
+    font-weight: 700;
+  }
+  .modal-header h2 em{
+    font-style: normal;
+    color: var(--accent);
+  }
+  .modal-close{
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: var(--bg);
+    color: var(--grey-text);
+    font-size: 16px;
+    cursor: pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .modal-close:hover{ background: var(--danger-bg); color: var(--danger); }
+  .modal-body{ padding: 18px; display:flex; flex-direction:column; gap: 16px; }
+  .modal-field label{
+    display:block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--grey-text);
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    margin-bottom: 6px;
+  }
+  .modal-field textarea{
+    width: 100%;
+    min-height: 120px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--grey-box-border);
+    font-family: inherit;
+    font-size: 13.5px;
+    line-height: 1.45;
+    resize: vertical;
+    outline: none;
+  }
+  .modal-field textarea:focus{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+  }
+  .modal-function-row{ display:flex; gap: 8px; align-items:stretch; }
+  .modal-function-row select{
+    flex: 1;
+    min-width: 0;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--grey-box-border);
+    font-family: inherit;
+    font-size: 13.5px;
+    background: #fff;
+    outline: none;
+  }
+  .modal-function-row select:focus{
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+  }
+  .ellipsis-btn{
+    flex: 0 0 auto;
+    width: 38px;
+    border-radius: 8px;
+    border: 1px solid var(--grey-box-border);
+    background: #fff;
+    color: var(--grey-text);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .ellipsis-btn:hover{ border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+  .function-list{ display:flex; flex-direction:column; gap: 4px; max-height: 220px; overflow-y:auto; }
+  .function-row{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 7px;
+    background: var(--bg);
+  }
+  .function-row span{ flex:1; min-width:0; font-size: 13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .function-row button{
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--grey-text);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .function-row button:hover{ background: var(--danger-bg); color: var(--danger); }
+  .function-empty{ font-size: 12.5px; color: var(--grey-text); padding: 4px; }
+  .function-add-row{ display:flex; gap: 8px; margin-top: 10px; }
+  .function-add-row input{
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--grey-box-border);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+  .function-add-row input:focus{ border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+  .function-add-row button{
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    border-radius: 7px;
+    border: 1.5px dashed #b7bac0;
+    background: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .function-add-row button:hover{ border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
   @media (max-width: 760px){
     #app{ flex-direction: column; }
     #sidebar{
@@ -498,7 +654,7 @@
     });
   }
 
-  function makeStep(){ return { id: makeId(), label: null, inputs: [], outputs: [] }; }
+  function makeStep(){ return { id: makeId(), label: null, instructions: null, functionId: null, inputs: [], outputs: [] }; }
   function makeInput(){ return { id: makeId(), label: null, supplier: null }; }
   function makeOutput(){ return { id: makeId(), label: null, customer: null }; }
   function makeSupplier(){ return { id: makeId(), label: null }; }
@@ -509,6 +665,8 @@
   // All processes, for the sidebar tree: [{id, name}]
   var processList = [];
   var searchText = "";
+  // Global master list of functions ("stamtabel"), shared across all processes
+  var functionsList = [];
 
   // ---------------------------------------------------------------------
   // Small helpers
@@ -784,13 +942,15 @@
     var idx = state.steps.indexOf(step);
     if (idx === -1) return Promise.resolve();
     return trackSave(sb.from("sipoc_steps").upsert({
-      id: step.id, process_id: state.processId, position: idx, label: step.label
+      id: step.id, process_id: state.processId, position: idx, label: step.label,
+      instructions: step.instructions, function_id: step.functionId
     }));
   }
   function syncStepsOrder(){
     return Promise.all(state.steps.map(function(step, i){
       return trackSave(sb.from("sipoc_steps").upsert({
-        id: step.id, process_id: state.processId, position: i, label: step.label
+        id: step.id, process_id: state.processId, position: i, label: step.label,
+        instructions: step.instructions, function_id: step.functionId
       }));
     }));
   }
@@ -827,6 +987,36 @@
   function deleteOutputRow(id){ return trackSave(sb.from("sipoc_outputs").delete().eq("id", id)); }
 
   // ---------------------------------------------------------------------
+  // Functions master table ("stamtabel"): shared across all processes
+  // ---------------------------------------------------------------------
+  function fetchFunctions(){
+    return sb.from("functions").select("id,name").then(function(res){
+      if (res.error){ console.error(res.error); functionsList = []; return; }
+      functionsList = (res.data || []).slice().sort(function(a, b){
+        return (a.name || "").localeCompare(b.name || "", "nl", { sensitivity: "base" });
+      });
+    });
+  }
+
+  function createFunction(name){
+    var trimmed = name.trim();
+    if (!trimmed) return Promise.resolve(null);
+    var id = makeId();
+    return trackSave(sb.from("functions").insert({ id: id, name: trimmed })).then(function(){
+      return fetchFunctions().then(function(){ return id; });
+    });
+  }
+
+  function deleteFunctionRow(id){
+    return trackSave(sb.from("functions").delete().eq("id", id)).then(function(){
+      return fetchFunctions().then(function(){
+        // any step pointing at the deleted function loses the reference locally too
+        state.steps.forEach(function(step){ if (step.functionId === id) step.functionId = null; });
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------
   // Loading / switching / creating / deleting processes
   // ---------------------------------------------------------------------
   function fetchProcessList(){
@@ -853,6 +1043,8 @@
             return {
               id: row.id,
               label: row.label,
+              instructions: row.instructions,
+              functionId: row.function_id,
               inputs: inputsRows.filter(function(i){ return i.step_id === row.id; }).map(function(i){
                 return { id: i.id, label: i.label, supplier: i.supplier_label === null ? null : { id: makeId(), label: i.supplier_label || null } };
               }),
@@ -966,25 +1158,189 @@
 
     switch (ref.kind){
       case "process":
+        // Only the header/sidebar reflect a process-name change — never touch
+        // #board here: rebuilding it mid-click (e.g. right after "+ Nieuw
+        // proces" auto-focused this field) would replace the very box the
+        // user is about to click, and the browser silently drops that click.
         syncProcessName();
         var entry = processList.filter(function(p){ return p.id === state.processId; })[0];
         if (entry) entry.name = state.processName;
+        renderProcessHeader();
         renderSidebar();
         break;
       case "step":
         syncStep(ref.step);
+        render();
         break;
       case "input":
       case "supplier":
         syncInput(ref.step, ref.input);
+        render();
         break;
       case "output":
       case "customer":
         syncOutput(ref.step, ref.output);
+        render();
         break;
     }
-    render();
-    if (ref.kind === "process") renderProcessHeader();
+  }
+
+  // ---------------------------------------------------------------------
+  // Step detail modal (werkinstructie + functie) — double-click on a
+  // process-step rectangle opens it; a single click still renames it.
+  // ---------------------------------------------------------------------
+  function closeModal(overlayEl){
+    if (overlayEl && overlayEl.parentNode) overlayEl.parentNode.removeChild(overlayEl);
+  }
+
+  function functionOptionsHtml(selectedId){
+    var html = '<option value="">— geen functie —</option>';
+    functionsList.forEach(function(f){
+      html += '<option value="' + f.id + '"' + (f.id === selectedId ? ' selected' : '') + '>' + escapeHtml(f.name) + '</option>';
+    });
+    return html;
+  }
+
+  function openStepModal(sIdx){
+    var step = state.steps[sIdx];
+    if (!step) return;
+    closeModal(document.getElementById("step-modal-overlay"));
+
+    var overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.id = "step-modal-overlay";
+    var stepTitle = step.label ? escapeHtml(step.label) : "Naamloze processtap";
+    overlay.innerHTML =
+      '<div class="modal-panel">' +
+        '<div class="modal-header">' +
+          '<h2>Details &mdash; <em>' + stepTitle + '</em></h2>' +
+          '<button type="button" class="modal-close" id="step-modal-close" title="Sluiten">&times;</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<div class="modal-field">' +
+            '<label for="modal-instructions">Werkinstructie</label>' +
+            '<textarea id="modal-instructions" placeholder="Beschrijf hier de werkinstructie…">' + (step.instructions ? escapeHtml(step.instructions) : "") + '</textarea>' +
+          '</div>' +
+          '<div class="modal-field">' +
+            '<label for="modal-function">Functie</label>' +
+            '<div class="modal-function-row">' +
+              '<select id="modal-function">' + functionOptionsHtml(step.functionId) + '</select>' +
+              '<button type="button" class="ellipsis-btn" id="modal-manage-functions" title="Functies beheren">&hellip;</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    var textarea = overlay.querySelector("#modal-instructions");
+    var select = overlay.querySelector("#modal-function");
+
+    function saveInstructions(){
+      var trimmed = textarea.value.trim();
+      step.instructions = trimmed.length ? trimmed : null;
+      syncStep(step);
+    }
+    textarea.addEventListener("blur", saveInstructions);
+
+    select.addEventListener("change", function(){
+      step.functionId = select.value || null;
+      syncStep(step);
+    });
+
+    function onKeydown(e){ if (e.key === "Escape") close(); }
+    function close(){
+      saveInstructions();
+      closeModal(overlay);
+      document.removeEventListener("keydown", onKeydown);
+      render(); // reflect any label/step changes made meanwhile
+    }
+    overlay.querySelector("#step-modal-close").addEventListener("click", close);
+    overlay.addEventListener("mousedown", function(e){ if (e.target === overlay) close(); });
+    document.addEventListener("keydown", onKeydown);
+
+    overlay.querySelector("#modal-manage-functions").addEventListener("click", function(){
+      openFunctionsModal(function(){
+        select.innerHTML = functionOptionsHtml(step.functionId);
+      });
+    });
+
+    textarea.focus();
+  }
+
+  function openFunctionsModal(onChange){
+    closeModal(document.getElementById("functions-modal-overlay"));
+
+    var overlay = document.createElement("div");
+    overlay.className = "modal-overlay modal-nested";
+    overlay.id = "functions-modal-overlay";
+    overlay.innerHTML =
+      '<div class="modal-panel modal-panel-sm">' +
+        '<div class="modal-header">' +
+          '<h2>Functies beheren</h2>' +
+          '<button type="button" class="modal-close" id="functions-modal-close" title="Sluiten">&times;</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+          '<div class="function-list" id="function-list"></div>' +
+          '<div class="function-add-row">' +
+            '<input type="text" id="new-function-name" placeholder="Nieuwe functie…" autocomplete="off">' +
+            '<button type="button" id="add-function-btn">+ Toevoegen</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    function renderList(){
+      var listEl = overlay.querySelector("#function-list");
+      if (!functionsList.length){
+        listEl.innerHTML = '<p class="function-empty">Nog geen functies aangemaakt.</p>';
+        return;
+      }
+      listEl.innerHTML = functionsList.map(function(f){
+        return '<div class="function-row"><span>' + escapeHtml(f.name) + '</span>' +
+          '<button type="button" data-fn="' + f.id + '" title="Verwijderen">&times;</button></div>';
+      }).join("");
+    }
+    renderList();
+
+    function onKeydown(e){ if (e.key === "Escape") close(); }
+    function close(){
+      closeModal(overlay);
+      document.removeEventListener("keydown", onKeydown);
+    }
+    overlay.querySelector("#functions-modal-close").addEventListener("click", close);
+    overlay.addEventListener("mousedown", function(e){ if (e.target === overlay) close(); });
+    document.addEventListener("keydown", onKeydown);
+
+    overlay.querySelector("#function-list").addEventListener("click", function(e){
+      var btn = e.target.closest("button[data-fn]");
+      if (!btn) return;
+      deleteFunctionRow(btn.getAttribute("data-fn")).then(function(){
+        renderList();
+        if (onChange) onChange();
+      });
+    });
+
+    var input = overlay.querySelector("#new-function-name");
+    function addNew(){
+      var name = input.value;
+      if (!name.trim()) return;
+      createFunction(name).then(function(newId){
+        input.value = "";
+        renderList();
+        if (onChange) onChange();
+        var parentSelect = document.getElementById("modal-function");
+        if (newId && parentSelect){
+          parentSelect.value = newId;
+          parentSelect.dispatchEvent(new Event("change"));
+        }
+        input.focus();
+      });
+    }
+    overlay.querySelector("#add-function-btn").addEventListener("click", addNew);
+    input.addEventListener("keydown", function(e){
+      if (e.key === "Enter"){ e.preventDefault(); addNew(); }
+    });
+    input.focus();
   }
 
   // ---------------------------------------------------------------------
@@ -1073,6 +1429,16 @@
     }
   });
 
+  main.addEventListener("dblclick", function(e){
+    var boxEl = e.target.closest(".box-process");
+    if (!boxEl) return;
+    e.preventDefault();
+    if (boxEl.getAttribute("contenteditable") === "true"){
+      boxEl.blur(); // cleanly commits/ends the inline edit the two clicks just started
+    }
+    openStepModal(parseInt(boxEl.getAttribute("data-path").split(".")[0], 10));
+  });
+
   main.addEventListener("focusout", function(e){
     var boxEl = e.target.closest(".box");
     if (boxEl && boxEl.getAttribute("contenteditable") === "true"){
@@ -1115,7 +1481,7 @@
   // Init
   // ---------------------------------------------------------------------
   function init(){
-    fetchProcessList().then(function(){
+    Promise.all([fetchProcessList(), fetchFunctions()]).then(function(){
       renderSidebar();
       var params = new URLSearchParams(window.location.search);
       var wantedId = params.get("p");
