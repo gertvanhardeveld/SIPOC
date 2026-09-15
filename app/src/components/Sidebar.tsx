@@ -34,7 +34,7 @@ export default function Sidebar() {
     },
   });
 
-  const groups = useMemo(() => groupProcesses(processes, search), [processes, search]);
+  const filtered = useMemo(() => filterAndSortProcesses(processes, search), [processes, search]);
 
   function handleDelete(e: MouseEvent, id: string) {
     e.stopPropagation();
@@ -81,44 +81,38 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
           <p className="text-[12.5px] text-grey-text">Laden…</p>
-        ) : groups.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <p className="text-[12.5px] text-grey-text">Geen processen gevonden.</p>
         ) : (
-          groups.map(([letter, items]) => (
-            <div key={letter} className="mb-2">
-              <div className="px-1 text-[11px] font-semibold text-grey-text">{letter}</div>
-              {items.map((p) => {
-                const canDelete = !!user && (p.created_by === null || p.created_by === user.id);
-                const active = p.id === activeId;
-                return (
-                  <div
-                    key={p.id}
-                    className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm ${
-                      active ? "bg-accent-bg text-accent" : "hover:bg-bg"
-                    }`}
+          filtered.map((p) => {
+            const active = p.id === activeId;
+            return (
+              <div
+                key={p.id}
+                className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm ${
+                  active ? "bg-accent-bg text-accent" : "hover:bg-bg"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => navigate(`/proces/${p.id}`)}
+                  className="flex-1 truncate text-left"
+                >
+                  {p.name || <span className="italic text-grey-text">Procesnaam</span>}
+                </button>
+                {!!user && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleDelete(e, p.id)}
+                    title="Proces verwijderen"
+                    className="ml-1 shrink-0 text-grey-text hover:text-danger"
                   >
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/proces/${p.id}`)}
-                      className="flex-1 truncate text-left"
-                    >
-                      {p.name || <span className="italic text-grey-text">Procesnaam</span>}
-                    </button>
-                    {canDelete && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleDelete(e, p.id)}
-                        title="Proces verwijderen"
-                        className="ml-1 shrink-0 text-grey-text hover:text-danger"
-                      >
-                        &times;
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))
+                    &times;
+                  </button>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
     </aside>
@@ -142,20 +136,9 @@ function AccountRow() {
   );
 }
 
-function groupProcesses(
-  processes: ProcessSummary[],
-  search: string,
-): [string, ProcessSummary[]][] {
+function filterAndSortProcesses(processes: ProcessSummary[], search: string): ProcessSummary[] {
   const q = search.trim().toLowerCase();
   const filtered = processes.filter((p) => (p.name || "procesnaam").toLowerCase().includes(q));
   filtered.sort((a, b) => (a.name || "").localeCompare(b.name || "", "nl", { sensitivity: "base" }));
-
-  const map = new Map<string, ProcessSummary[]>();
-  filtered.forEach((p) => {
-    let letter = (p.name || "").trim().charAt(0).toUpperCase();
-    if (!letter || !/[A-Z]/.test(letter)) letter = "#";
-    if (!map.has(letter)) map.set(letter, []);
-    map.get(letter)!.push(p);
-  });
-  return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  return filtered;
 }

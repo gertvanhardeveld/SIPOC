@@ -379,6 +379,18 @@ gezet bij het aanmaken) of iemand op de **bewerkerslijst**
   bijbehorende stap). De stamtabellen (functies, externe partijen,
   communicatiesoorten, proceseigenaren) blijven gedeeld vocabulaire voor
   iedereen die ingelogd is — geen per-proces afscherming daarop.
+- **Verwijderen van een proces is bewust ruimer dan bewerken:** elke
+  ingelogde gebruiker mag elk proces verwijderen, ongeacht eigenaar/
+  bewerkerslijst (policy "verwijderen: alle ingelogde gebruikers",
+  `using (true)`, alleen voor de rol `authenticated`) — dus niet via
+  `can_edit_process`. Dit is een bewuste versoepeling t.o.v. de eerdere
+  eigenaar/legacy-only-regel: met één echte gebruiker die tijdens het
+  testen tussen twee eigen e-mailadressen wisselt, ontstonden anders
+  "eigen" testprocessen die niet meer op te ruimen waren omdat ze onder
+  het andere adres waren aangemaakt. Bewerken blijft wel beperkt tot
+  eigenaar/bewerker/legacy — alleen verwijderen is opengezet. Zodra er
+  echte, elkaar niet vertrouwende gebruikers bijkomen is dit het eerste
+  wat weer aangescherpt moet worden (zie deel 7).
 
 ### 6c. Overige beveiligingskeuzes
 
