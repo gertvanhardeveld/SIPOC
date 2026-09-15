@@ -23,9 +23,9 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="app-shell flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto">
+      <main className="app-main flex-1 overflow-y-auto">
         <Routes>
           <Route path="/" element={<EmptyState />} />
           <Route path="/proces/:id" element={<ProcessPage />} />
