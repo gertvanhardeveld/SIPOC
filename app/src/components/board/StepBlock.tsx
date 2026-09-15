@@ -68,6 +68,9 @@ export default function StepBlock({
                       className={`box-supplier${supplierInternal ? " box-internal" : ""}`}
                       editable={canEdit}
                       onOpen={() => actions.openPartyModal("supplier", stepIdx, r)}
+                      activityStepId={
+                        input.supplier?.internalType === "activiteit" ? input.supplier.stepId : null
+                      }
                     />
                     {canEdit && (
                       <button
@@ -223,6 +226,9 @@ export default function StepBlock({
                       className={`box-customer${customerInternal ? " box-internal" : ""}`}
                       editable={canEdit}
                       onOpen={() => actions.openPartyModal("customer", stepIdx, r)}
+                      activityStepId={
+                        output.customer?.internalType === "activiteit" ? output.customer.stepId : null
+                      }
                     />
                     {canEdit && (
                       <button
