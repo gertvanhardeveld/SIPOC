@@ -361,6 +361,42 @@ Deze vier velden leven direct op de `processes`-rij zelf (`description`,
 `on delete set null`) en worden, net als de procesnaam, in één upsert
 (`syncProcess`) samen opgeslagen.
 
+## 5e. Procesketens (alleen nieuwe React-app)
+
+Een aparte weergave, los van het bord van één proces: hoe processen via
+gekoppelde activiteiten (deel 5b, Intern → Procesactiviteit) aan elkaar
+hangen. Bereikbaar via **"Procesketens"** naast **"SIPOC"** linksboven in
+de zijbalk (`/procesketens`) — samen een simpele toggle tussen "het
+gewone werkscherm" en "het overzicht van koppelingen"; de rest van de
+zijbalk (zoeken, procesboom, "+ Nieuw proces") blijft altijd zichtbaar,
+alleen het hoofdscherm wisselt.
+
+- Elke rechthoek ("node") is één **activiteit** die aan een andere
+  activiteit (in een ander proces) gekoppeld is: procesnaam vetgedrukt,
+  de activiteit zelf cursief eronder. Alleen activiteiten die ergens aan
+  gekoppeld zijn komen voor — een proces zonder enige koppeling staat
+  niet in dit overzicht.
+- Elke lijn ("edge") is precies één koppeling, met de naam van de
+  input/output erop als label. Omdat een activiteit-verwijzing altijd
+  aan beide kanten bestaat (de wederzijdse koppeling uit 5b), worden de
+  output-kant en de input-kant van dezelfde koppeling hier samengevoegd
+  tot één lijn — niet twee.
+- Interactief canvas (pannen/in- en uitzoomen) via
+  [`@xyflow/react`](https://reactflow.dev); de lay-out zelf is een eigen,
+  simpel raster per samenhangende groep gekoppelde activiteiten
+  (`layoutChainNodes` in `lib/processChains.ts`) — geen zware
+  graaf-layout-library nodig voor wat in de praktijk vooral kleine,
+  losse groepjes van twee-of-een-paar activiteiten zullen zijn.
+- Een procesfilter (rechtsboven, "Processen (x/y)") laat zien welke
+  processen in de huidige koppelingen voorkomen; uitvinken verbergt dat
+  proces (en de lijnen die erop uitkomen) uit de weergave, voor als er
+  ooit te veel koppelingen tegelijk zijn om overzichtelijk te tonen.
+- Data komt uit `fetchProcessChainGraph` (`lib/processChains.ts`): leest
+  dwars door **alle** processen heen (mag, want `sipoc_outputs`/
+  `sipoc_inputs`/`sipoc_steps`/`processes` zijn allemaal open leesbaar
+  voor elke ingelogde gebruiker, zie deel 6b) — dit overzicht toont dus
+  ook koppelingen van processen die je zelf niet mag bewerken.
+
 ## 6. Toegang en beveiliging
 
 ### 6a. Authenticatie: magic link

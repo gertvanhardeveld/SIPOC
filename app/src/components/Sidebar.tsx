@@ -1,5 +1,5 @@
 import { useMemo, useState, type MouseEvent } from "react";
-import { NavLink, useNavigate, useParams } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../lib/AuthContext";
 import { supabase } from "../lib/supabaseClient";
@@ -9,9 +9,11 @@ import type { ProcessSummary } from "../lib/types";
 export default function Sidebar() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { id: activeId } = useParams();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const onChains = location.pathname.startsWith("/procesketens");
 
   const { data: processes = [], isLoading } = useQuery({
     queryKey: ["processes"],
@@ -46,7 +48,21 @@ export default function Sidebar() {
 
   return (
     <aside className="flex h-screen w-72 shrink-0 flex-col border-r border-border bg-panel p-4">
-      <h1 className="text-lg font-bold text-header-text">SIPOC</h1>
+      <div className="flex items-center gap-2">
+        <Link
+          to="/"
+          className={`text-lg font-bold ${onChains ? "text-grey-text hover:text-header-text" : "text-header-text"}`}
+        >
+          SIPOC
+        </Link>
+        <span className="text-grey-text">·</span>
+        <Link
+          to="/procesketens"
+          className={`text-sm font-semibold ${onChains ? "text-header-text" : "text-grey-text hover:text-header-text"}`}
+        >
+          Procesketens
+        </Link>
+      </div>
       <AccountRow />
 
       <NavLink
