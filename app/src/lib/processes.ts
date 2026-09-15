@@ -19,21 +19,32 @@ export async function fetchProcess(id: string): Promise<ProcessRecord> {
   return data;
 }
 
-/** Owner or an explicitly invited editor may edit; everyone else is read-only. */
+/** TIJDELIJK (testfase): elke ingelogde gebruiker mag elk proces
+ * bewerken — matcht de eveneens tijdelijk verruimde `can_edit_process`
+ * RLS-functie in de database. De oorspronkelijke check (owner of
+ * expliciet uitgenodigde bewerker, zie process_editors) staat hieronder
+ * in commentaar om later weer terug te zetten. */
 export async function canEditProcess(
-  proc: Pick<ProcessRecord, "id" | "created_by">,
+  _proc: Pick<ProcessRecord, "id" | "created_by">,
   userId: string | null,
 ): Promise<boolean> {
-  if (!userId) return false;
-  if (proc.created_by === null || proc.created_by === userId) return true;
-  const { data, error } = await supabase
-    .from("process_editors")
-    .select("user_id")
-    .eq("process_id", proc.id)
-    .eq("user_id", userId);
-  if (error) throw error;
-  return !!(data && data.length);
+  return !!userId;
 }
+
+// export async function canEditProcess(
+//   proc: Pick<ProcessRecord, "id" | "created_by">,
+//   userId: string | null,
+// ): Promise<boolean> {
+//   if (!userId) return false;
+//   if (proc.created_by === null || proc.created_by === userId) return true;
+//   const { data, error } = await supabase
+//     .from("process_editors")
+//     .select("user_id")
+//     .eq("process_id", proc.id)
+//     .eq("user_id", userId);
+//   if (error) throw error;
+//   return !!(data && data.length);
+// }
 
 export async function createProcess(userId: string): Promise<string> {
   const id = crypto.randomUUID();
