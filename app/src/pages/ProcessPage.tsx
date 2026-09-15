@@ -417,6 +417,7 @@ export default function ProcessPage() {
               : steps[partyModal.stepIdx].outputs[partyModal.idx].customer) ?? makeParty()
           }
           columnLabel={partyModal.kind === "supplier" ? "Supplier" : "Customer"}
+          currentProcessId={id!}
           onClose={() => setPartyModal(null)}
           onSave={(party) => savePartyDetails(partyModal, party)}
         />

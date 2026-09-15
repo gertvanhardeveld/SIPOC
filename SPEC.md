@@ -282,6 +282,22 @@ stamtabel, labels en placeholder-tekst ze gebruiken. Een net aangemaakte
 waarde wordt, net als bij het stapformulier, meteen geselecteerd voor het
 vak waar je mee bezig was.
 
+**Alleen in de nieuwe React-app**: bij **Intern** komt er een extra
+tussenstap **Soort verwijzing** — **Functie** (het bovenstaande, ongewijzigd)
+of **Procesactiviteit**. Bij dat laatste volgen twee extra keuzelijsten:
+eerst een **Proces** (alle processen behalve het proces waar dit blokje
+zelf in staat — de bedoeling is een verwijzing naar een ándér proces),
+dan een **Activiteit** binnen dat gekozen proces (de stappen van dat
+proces, opgehaald zodra een proces gekozen is). De rechthoek toont dan de
+naam van die activiteit, op dezelfde manier als bij Functie/Externe
+partij. Nieuwe kolommen `sipoc_inputs.supplier_internal_type` /
+`supplier_step_id` en `sipoc_outputs.customer_internal_type` /
+`customer_step_id` (de laatste twee `on delete set null`, dus een
+verwijderde activiteit laat het vak niet stuk gaan — het toont alleen de
+laatst bekende naam totdat iemand het opnieuw instelt, net als bij een
+verwijderde functie/externe partij). `index.html` heeft dit onderscheid
+niet — daar blijft Intern altijd gewoon een Functie.
+
 ## 5c. Input en output: omschrijving en soort communicatie
 
 Dubbelklikken op een input- of output-rechthoek (net als bij een

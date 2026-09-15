@@ -11,8 +11,14 @@ export interface PartyRef {
   id: string;
   label: string | null;
   kind: "intern" | "extern" | null;
+  /** Alleen relevant bij kind === "intern": verwijst dit naar een functie,
+   * of naar een activiteit in een (ander) proces? */
+  internalType: "functie" | "activiteit" | null;
   functionId: string | null;
   externalId: string | null;
+  /** Alleen relevant bij internalType === "activiteit": de verwezen
+   * sipoc_steps.id — kan in elk proces liggen, niet per se dit proces. */
+  stepId: string | null;
 }
 
 export interface StepInput {
@@ -59,28 +65,57 @@ export function makeOutput(): StepOutput {
   return { id: makeId(), label: null, communicationTypeId: null, customer: null };
 }
 export function makeParty(): PartyRef {
-  return { id: makeId(), label: null, kind: null, functionId: null, externalId: null };
+  return { id: makeId(), label: null, kind: null, internalType: null, functionId: null, externalId: null, stepId: null };
 }
 
 /** What a supplier/customer rectangle should show: the chosen function's
- * (intern) or external party's (extern) name wins once set; falls back to
- * the free-typed label otherwise (older data, or a type chosen but nothing
- * specific picked yet). */
+ * (intern → functie) or activiteit's (intern → activiteit) or external
+ * party's (extern) name wins once set; falls back to the free-typed label
+ * otherwise (older data, or a type chosen but nothing specific picked
+ * yet). `stepsList` is the step list of whichever process is currently
+ * selected in the "Procesactiviteit"-picker — it only needs to resolve
+ * the one step being referenced, not every process's steps. */
 export function partyResolvedLabel(
   party: PartyRef | null,
   functionsList: MasterItem[],
   externalPartiesList: MasterItem[],
+  stepsList: MasterItem[] = [],
 ): string | null {
   if (!party) return null;
-  if (party.kind === "intern" && party.functionId) {
+  if (party.kind === "intern" && party.internalType === "functie" && party.functionId) {
     const fn = functionsList.find((f) => f.id === party.functionId);
     if (fn) return fn.name;
+  }
+  if (party.kind === "intern" && party.internalType === "activiteit" && party.stepId) {
+    const st = stepsList.find((s) => s.id === party.stepId);
+    if (st) return st.name;
   }
   if (party.kind === "extern" && party.externalId) {
     const ep = externalPartiesList.find((p) => p.id === party.externalId);
     if (ep) return ep.name;
   }
   return party.label;
+}
+
+/** Alle activiteiten (id + label) van één proces, voor de
+ * "Procesactiviteit"-picker in PartyModal. */
+export async function fetchStepsForProcess(processId: string): Promise<MasterItem[]> {
+  const { data, error } = await supabase
+    .from("sipoc_steps")
+    .select("id,label")
+    .eq("process_id", processId)
+    .order("position");
+  if (error) throw error;
+  return (data ?? []).map((s) => ({ id: s.id, name: s.label || "Naamloze processtap" }));
+}
+
+/** Welk proces een gegeven stap-id bij hoort — gebruikt om, bij het openen
+ * van een bestaande "activiteit"-verwijzing, de processelector in
+ * PartyModal alvast op het juiste proces te zetten. */
+export async function fetchStepProcessId(stepId: string): Promise<string | null> {
+  const { data, error } = await supabase.from("sipoc_steps").select("process_id").eq("id", stepId).maybeSingle();
+  if (error) throw error;
+  return data?.process_id ?? null;
 }
 
 export async function loadSteps(processId: string): Promise<SipocStep[]> {
@@ -125,8 +160,10 @@ export async function loadSteps(processId: string): Promise<SipocStep[]> {
                 id: makeId(),
                 label: i.supplier_label,
                 kind: i.supplier_kind,
+                internalType: i.supplier_internal_type ?? null,
                 functionId: i.supplier_function_id,
                 externalId: i.supplier_external_id,
+                stepId: i.supplier_step_id ?? null,
               },
       })),
     outputs: outputsRows
@@ -142,8 +179,10 @@ export async function loadSteps(processId: string): Promise<SipocStep[]> {
                 id: makeId(),
                 label: o.customer_label,
                 kind: o.customer_kind,
+                internalType: o.customer_internal_type ?? null,
                 functionId: o.customer_function_id,
                 externalId: o.customer_external_id,
+                stepId: o.customer_step_id ?? null,
               },
       })),
   }));
@@ -174,8 +213,10 @@ function inputRow(input: StepInput, position: number, stepId: string) {
     label: input.label,
     supplier_label: input.supplier ? input.supplier.label || "" : null,
     supplier_kind: input.supplier ? input.supplier.kind : null,
+    supplier_internal_type: input.supplier ? input.supplier.internalType : null,
     supplier_function_id: input.supplier ? input.supplier.functionId : null,
     supplier_external_id: input.supplier ? input.supplier.externalId : null,
+    supplier_step_id: input.supplier ? input.supplier.stepId : null,
     communication_type_id: input.communicationTypeId,
   };
 }
@@ -188,8 +229,10 @@ function outputRow(output: StepOutput, position: number, stepId: string) {
     label: output.label,
     customer_label: output.customer ? output.customer.label || "" : null,
     customer_kind: output.customer ? output.customer.kind : null,
+    customer_internal_type: output.customer ? output.customer.internalType : null,
     customer_function_id: output.customer ? output.customer.functionId : null,
     customer_external_id: output.customer ? output.customer.externalId : null,
+    customer_step_id: output.customer ? output.customer.stepId : null,
     communication_type_id: output.communicationTypeId,
   };
 }
