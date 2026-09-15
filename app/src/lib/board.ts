@@ -265,3 +265,119 @@ export async function deleteOutputRow(id: string): Promise<void> {
   const { error } = await supabase.from("sipoc_outputs").delete().eq("id", id);
   if (error) throw error;
 }
+
+// ---------------------------------------------------------------------
+// Wederzijdse koppeling voor "activiteit"-verwijzingen: een output die
+// naar een activiteit in een ander proces wijst, is voor die andere
+// activiteit een input (en andersom). Het instellen, verplaatsen of
+// verwijderen van zo'n verwijzing houdt de andere kant automatisch
+// gelijk — de gebruiker hoeft niet twee keer hetzelfde in te voeren.
+// ---------------------------------------------------------------------
+
+interface ReciprocalRef {
+  targetStepId: string;
+  fromStepId: string;
+  fromStepLabel: string | null;
+  label: string | null;
+}
+
+async function findReciprocal(
+  table: "sipoc_inputs" | "sipoc_outputs",
+  side: "supplier" | "customer",
+  targetStepId: string,
+  fromStepId: string,
+): Promise<{ id: string } | null> {
+  const { data, error } = await supabase
+    .from(table)
+    .select("id")
+    .eq("step_id", targetStepId)
+    .eq(`${side}_kind`, "intern")
+    .eq(`${side}_internal_type`, "activiteit")
+    .eq(`${side}_step_id`, fromStepId)
+    .order("position")
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** De andere activiteit krijgt (of behoudt) een input wiens herkomst
+ * terugwijst naar `fromStepId` — aangeroepen wanneer een output-blokje
+ * op een activiteit-verwijzing gezet of gewijzigd wordt. */
+export async function syncReciprocalInput(ref: ReciprocalRef): Promise<void> {
+  const existing = await findReciprocal("sipoc_inputs", "supplier", ref.targetStepId, ref.fromStepId);
+  const row = {
+    label: ref.label,
+    supplier_label: ref.fromStepLabel || "",
+    supplier_kind: "intern",
+    supplier_internal_type: "activiteit",
+    supplier_step_id: ref.fromStepId,
+    supplier_function_id: null,
+    supplier_external_id: null,
+  };
+  if (existing) {
+    const { error } = await supabase.from("sipoc_inputs").update(row).eq("id", existing.id);
+    if (error) throw error;
+    return;
+  }
+  const { count, error: countError } = await supabase
+    .from("sipoc_inputs")
+    .select("id", { count: "exact", head: true })
+    .eq("step_id", ref.targetStepId);
+  if (countError) throw countError;
+  const { error } = await supabase
+    .from("sipoc_inputs")
+    .insert({ id: makeId(), step_id: ref.targetStepId, position: count ?? 0, communication_type_id: null, ...row });
+  if (error) throw error;
+}
+
+/** De andere activiteit krijgt (of behoudt) een output wiens bestemming
+ * terugwijst naar `fromStepId` — het spiegelbeeld van
+ * `syncReciprocalInput`, voor wanneer een input-blokje op een
+ * activiteit-verwijzing gezet of gewijzigd wordt. */
+export async function syncReciprocalOutput(ref: ReciprocalRef): Promise<void> {
+  const existing = await findReciprocal("sipoc_outputs", "customer", ref.targetStepId, ref.fromStepId);
+  const row = {
+    label: ref.label,
+    customer_label: ref.fromStepLabel || "",
+    customer_kind: "intern",
+    customer_internal_type: "activiteit",
+    customer_step_id: ref.fromStepId,
+    customer_function_id: null,
+    customer_external_id: null,
+  };
+  if (existing) {
+    const { error } = await supabase.from("sipoc_outputs").update(row).eq("id", existing.id);
+    if (error) throw error;
+    return;
+  }
+  const { count, error: countError } = await supabase
+    .from("sipoc_outputs")
+    .select("id", { count: "exact", head: true })
+    .eq("step_id", ref.targetStepId);
+  if (countError) throw countError;
+  const { error } = await supabase
+    .from("sipoc_outputs")
+    .insert({ id: makeId(), step_id: ref.targetStepId, position: count ?? 0, communication_type_id: null, ...row });
+  if (error) throw error;
+}
+
+/** Ruimt een eerder aangemaakte wederzijdse input op — aangeroepen als een
+ * output-activiteit-verwijzing verandert of verwijderd wordt. */
+export async function removeReciprocalInput(targetStepId: string, fromStepId: string): Promise<void> {
+  const existing = await findReciprocal("sipoc_inputs", "supplier", targetStepId, fromStepId);
+  if (existing) {
+    const { error } = await supabase.from("sipoc_inputs").delete().eq("id", existing.id);
+    if (error) throw error;
+  }
+}
+
+/** Ruimt een eerder aangemaakte wederzijdse output op — het spiegelbeeld
+ * van `removeReciprocalInput`. */
+export async function removeReciprocalOutput(targetStepId: string, fromStepId: string): Promise<void> {
+  const existing = await findReciprocal("sipoc_outputs", "customer", targetStepId, fromStepId);
+  if (existing) {
+    const { error } = await supabase.from("sipoc_outputs").delete().eq("id", existing.id);
+    if (error) throw error;
+  }
+}

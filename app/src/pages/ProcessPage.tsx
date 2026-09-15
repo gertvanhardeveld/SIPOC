@@ -13,10 +13,14 @@ import {
   makeOutput,
   makeParty,
   makeStep,
+  removeReciprocalInput,
+  removeReciprocalOutput,
   syncInputRow,
   syncInputsOrder,
   syncOutputRow,
   syncOutputsOrder,
+  syncReciprocalInput,
+  syncReciprocalOutput,
   syncStepRow,
   syncStepsOrder,
   type PartyRef,
@@ -315,9 +319,46 @@ export default function ProcessPage() {
     }
   }
 
+  /** Een activiteit-verwijzing is een tweerichtingskoppeling: een output
+   * die naar activiteit X wijst, is voor X een input (en andersom). Zet,
+   * verplaatst of verwijdert de gebruiker zo'n verwijzing, dan wordt de
+   * andere kant hier automatisch aangemaakt/bijgewerkt/opgeruimd — buiten
+   * het huidige proces om, dus zonder dat het hier geladen bord ervoor
+   * hoeft te wachten. */
+  function syncReciprocalActivityLink(
+    kind: "supplier" | "customer",
+    step: SipocStep,
+    /** Het label van de input/output zelf (bv. "Order") — niet
+     * party.label, dat is de naam van waar de herkomst/bestemming ZELF
+     * naar verwijst (bv. de activiteit-naam), iets heel anders. */
+    entityLabel: string | null,
+    previousParty: PartyRef | null,
+    nextParty: PartyRef,
+  ) {
+    const prevStepId =
+      previousParty?.kind === "intern" && previousParty.internalType === "activiteit" ? previousParty.stepId : null;
+    const nextStepId =
+      nextParty.kind === "intern" && nextParty.internalType === "activiteit" ? nextParty.stepId : null;
+
+    if (prevStepId && prevStepId !== nextStepId) {
+      track(
+        kind === "supplier" ? removeReciprocalOutput(prevStepId, step.id) : removeReciprocalInput(prevStepId, step.id),
+      ).catch(() => {});
+    }
+    if (nextStepId) {
+      track(
+        kind === "supplier"
+          ? syncReciprocalOutput({ targetStepId: nextStepId, fromStepId: step.id, fromStepLabel: step.label, label: entityLabel })
+          : syncReciprocalInput({ targetStepId: nextStepId, fromStepId: step.id, fromStepLabel: step.label, label: entityLabel }),
+      ).catch(() => {});
+    }
+  }
+
   function savePartyDetails(target: PartyTarget, party: PartyRef) {
     if (!steps) return;
     const step = steps[target.stepIdx];
+    const previousParty = target.kind === "supplier" ? step.inputs[target.idx].supplier : step.outputs[target.idx].customer;
+    const entityLabel = target.kind === "supplier" ? step.inputs[target.idx].label : step.outputs[target.idx].label;
     if (target.kind === "supplier") {
       const nextInputs = step.inputs.map((inp, i) => (i === target.idx ? { ...inp, supplier: party } : inp));
       const next = steps.map((s, i) => (i === target.stepIdx ? { ...s, inputs: nextInputs } : s));
@@ -329,6 +370,7 @@ export default function ProcessPage() {
       setSteps(next);
       track(syncOutputRow(step.id, nextOutputs[target.idx], target.idx)).catch(() => {});
     }
+    syncReciprocalActivityLink(target.kind, step, entityLabel, previousParty, party);
   }
 
   const actions: BoardActions = {

@@ -298,6 +298,29 @@ laatst bekende naam totdat iemand het opnieuw instelt, net als bij een
 verwijderde functie/externe partij). `index.html` heeft dit onderscheid
 niet — daar blijft Intern altijd gewoon een Functie.
 
+**Een activiteit-verwijzing is een tweerichtingskoppeling.** Een output
+die naar activiteit X wijst, ís voor X een input — dus wordt bij X
+automatisch een input aangemaakt (of bijgewerkt) met dezelfde naam als de
+output, en een herkomst die terugwijst naar de stap waar de output
+vandaan komt (en symmetrisch: een input die naar activiteit Y wijst,
+maakt bij Y een output aan die terugwijst). Verplaats je de verwijzing
+naar een andere activiteit, dan verhuist de andere kant mee (de oude
+spiegel wordt opgeruimd, een nieuwe aangemaakt); verwijder je de
+verwijzing helemaal, dan verdwijnt de spiegel ook. Dit gebeurt via
+`syncReciprocalInput`/`syncReciprocalOutput`/`removeReciprocalInput`/
+`removeReciprocalOutput` (`lib/board.ts`), aangeroepen vanuit
+`savePartyDetails` in `ProcessPage.tsx` — rechtstreekse Supabase-writes
+op het ándere proces, buiten het hier geladen bord om (dat proces hoeft
+niet open te staan). Herkenning van "is dit dezelfde spiegel als
+vorige keer, of een nieuwe" gaat op `(*_kind, *_internal_type,
+*_step_id)` van de eerste match op positie — bij twee onafhankelijke
+koppelingen tussen exact dezelfde twee activiteiten kan dat de verkeerde
+raken; die situatie is nu bewust niet verder ondervangen. Deze
+koppeling vereist wél bewerkrechten op het ándere proces
+(`can_edit_process`) — ontbreken die (proces van een andere,
+niet-vertrouwde gebruiker), dan faalt alleen de spiegel-kant stil (zie
+`sync-status`-melding), de eigen kant is al wel opgeslagen.
+
 ## 5c. Input en output: omschrijving en soort communicatie
 
 Dubbelklikken op een input- of output-rechthoek (net als bij een
