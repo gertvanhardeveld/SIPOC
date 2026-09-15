@@ -5,6 +5,7 @@ import { useAuth } from "../lib/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import { createProcess, deleteProcess, fetchProcessList } from "../lib/processes";
 import type { ProcessSummary } from "../lib/types";
+import SetPasswordModal from "./modals/SetPasswordModal";
 
 export default function Sidebar() {
   const { user } = useAuth();
@@ -137,18 +138,31 @@ export default function Sidebar() {
 
 function AccountRow() {
   const { user } = useAuth();
+  const [settingPassword, setSettingPassword] = useState(false);
   if (!user) return null;
   return (
-    <div className="mt-3 truncate text-[12.5px] text-grey-text">
-      {user.email}
-      <button
-        type="button"
-        onClick={() => supabase.auth.signOut()}
-        className="ml-2 shrink-0 text-accent hover:underline"
-      >
-        Uitloggen
-      </button>
-    </div>
+    <>
+      <div className="mt-3 text-[12.5px] text-grey-text">
+        <div className="truncate">{user.email}</div>
+        <div className="mt-1 flex flex-wrap gap-x-2">
+          <button
+            type="button"
+            onClick={() => setSettingPassword(true)}
+            className="text-accent hover:underline"
+          >
+            Wachtwoord instellen
+          </button>
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            className="text-accent hover:underline"
+          >
+            Uitloggen
+          </button>
+        </div>
+      </div>
+      {settingPassword && <SetPasswordModal onClose={() => setSettingPassword(false)} />}
+    </>
   );
 }
 

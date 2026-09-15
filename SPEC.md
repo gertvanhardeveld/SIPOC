@@ -399,11 +399,10 @@ alleen het hoofdscherm wisselt.
 
 ## 6. Toegang en beveiliging
 
-### 6a. Authenticatie: magic link
+### 6a. Authenticatie: magic link (+ optioneel wachtwoord in de nieuwe app)
 
 Inloggen gaat via een **magic link** (Supabase Auth, passwordless):
 e-mailadres invullen → Supabase stuurt een inloglink → klikken logt in.
-Geen wachtwoorden, dus ook geen "wachtwoord vergeten"-flow nodig.
 Registratie staat open: iedereen met een e-mailadres kan zelf inloggen —
 er is (nog) geen uitnodig- of domeinbeperking.
 
@@ -422,6 +421,25 @@ er is (nog) geen uitnodig- of domeinbeperking.
   gevuld via een trigger (`handle_new_user`) bij het aanmaken van een
   account. Nodig om iemand op e-mailadres te kunnen opzoeken (bv. als
   bewerker toevoegen) zonder `auth.users` bloot te leggen.
+
+**Wachtwoord instellen (nieuwe React-app, `app/`)** — bovenop de magic
+link kan een ingelogde gebruiker zelf een wachtwoord instellen, zodat
+latere logins niet meer op een nieuwe e-mail hoeven te wachten:
+
+- `LoginPage.tsx` heeft twee modi: "Stuur inloglink" (standaard,
+  `signInWithOtp`) en "Met wachtwoord" (`signInWithPassword`), met een
+  link om tussen beide te wisselen. Beide gebruiken hetzelfde
+  Supabase `email`-provider — er is geen dashboard-wijziging nodig,
+  wachtwoord-login werkt zodra er een wachtwoord op het account staat.
+- Eenmaal ingelogd (via de magic link) toont de sidebar (`AccountRow`
+  in `Sidebar.tsx`) naast "Uitloggen" ook "Wachtwoord instellen", die
+  `SetPasswordModal` opent. Die modal roept
+  `supabase.auth.updateUser({ password })` aan op de bestaande sessie
+  (min. 8 tekens, met bevestigingsveld) en meldt daarna dat er voortaan
+  met e-mail + wachtwoord ingelogd kan worden.
+- Er is bewust geen "wachtwoord vergeten"-flow gebouwd: wie het
+  wachtwoord kwijt is, gebruikt gewoon opnieuw de magic link en stelt
+  eventueel een nieuw wachtwoord in.
 
 ### 6b. Autorisatie: wie mag wat
 

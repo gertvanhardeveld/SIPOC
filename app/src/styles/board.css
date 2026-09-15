@@ -479,7 +479,9 @@ input.box {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px var(--color-accent-bg);
 }
-.modal-field > input[type="text"] {
+.modal-field > input[type="text"],
+.modal-field > input[type="password"],
+.modal-field > input[type="email"] {
   width: 100%;
   padding: 9px 10px;
   border-radius: 8px;
@@ -488,7 +490,9 @@ input.box {
   font-size: 13.5px;
   outline: none;
 }
-.modal-field > input[type="text"]:focus {
+.modal-field > input[type="text"]:focus,
+.modal-field > input[type="password"]:focus,
+.modal-field > input[type="email"]:focus {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px var(--color-accent-bg);
 }
