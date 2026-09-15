@@ -417,6 +417,29 @@ input.box {
   .board {
     box-shadow: none !important;
   }
+  /* Zonder dit slaat Chrome achtergrondkleuren (de blauwe "intern"-
+     blokjes, het rode beslissing-vlak) standaard over bij afdrukken —
+     dit dwingt af dat ze wél meekomen. Werkt het bij het echte
+     afdrukken via de browser nog steeds niet, controleer dan of
+     "Achtergrondafbeeldingen" aanstaat in de afdrukdialoog: die
+     browser-instelling staat los van deze CSS-regel. */
+  .box,
+  .box-process,
+  .board {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* Het bord is van nature een brede, 5-koloms lay-out. Op een
+     staand/portret-pagina wordt het gedwongen in een veel smallere
+     breedte dan op het scherm, waardoor tekst in de hokjes gaat
+     afbreken en de vaste verbindingsruimte tussen stappen (die niet
+     meekrimpt met de kolombreedte) verhoudingsgewijs veel groter
+     oogt — vandaar "processtappen staan verder uit elkaar". Liggend
+     geeft het bord de breedte die het nodig heeft. */
+  @page {
+    size: landscape;
+    margin: 12mm;
+  }
 }
 
 /* ---------- Detail modals ---------- */
