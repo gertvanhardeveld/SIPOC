@@ -140,15 +140,21 @@ sipoc_outputs
 ```
 
 Voor de AO-online-achtige weergave (alleen in de nieuwe React-app,
-`index.html` heeft er geen formuliervelden voor — die kolommen staan er
-voor die app dus altijd op hun default `false`) zijn er nog drie losse
-boolean-kolommen bijgekomen, elk `not null default false`:
+`index.html` heeft er geen formulierveld voor — die kolom staat er voor
+die app dus altijd op de default `false`) is er één losse boolean-kolom
+bijgekomen:
 
 ```
-sipoc_steps.is_decision    -- "Beslissing"-vinkje: rood i.p.v. wit/blauw
-sipoc_inputs.is_internal   -- "Intern"-vinkje: blauw i.p.v. lichtgrijs
-sipoc_outputs.is_internal  -- idem, voor output
+sipoc_steps.is_decision    -- "Beslissing"-vinkje: rood i.p.v. wit-met-blauwe-rand
 ```
+
+Input/output krijgen bewust géén eigen "intern"-kolom: die kleur
+(blauw i.p.v. lichtgrijs) wordt afgeleid van `supplier_kind`/
+`customer_kind` van de bíjbehorende herkomst/bestemming — één keuze
+kleurt dus twee blokjes (de herkomst/bestemming zelf én de input/output
+ernaast) tegelijk. Een eerdere versie had hier nog een aparte
+`is_internal`-kolom op `sipoc_inputs`/`sipoc_outputs`; die is na een dag
+alweer verwijderd toen bleek dat 'm apart laten kiezen dubbelop was.
 
 Precies één van de twee referentiekolommen is relevant, afhankelijk van
 `*_kind` — bij het wisselen van intern ↔ extern in het formulier wordt de

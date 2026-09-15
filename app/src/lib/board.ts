@@ -20,8 +20,6 @@ export interface StepInput {
   label: string | null;
   communicationTypeId: string | null;
   supplier: PartyRef | null;
-  /** AO-online-stijl: interne input wordt blauw weergegeven i.p.v. lichtgrijs. */
-  isInternal: boolean;
 }
 
 export interface StepOutput {
@@ -29,8 +27,6 @@ export interface StepOutput {
   label: string | null;
   communicationTypeId: string | null;
   customer: PartyRef | null;
-  /** AO-online-stijl: interne output wordt blauw weergegeven i.p.v. lichtgrijs. */
-  isInternal: boolean;
 }
 
 export interface SipocStep {
@@ -57,10 +53,10 @@ export function makeStep(): SipocStep {
   return { id: makeId(), label: null, instructions: null, functionId: null, inputs: [], outputs: [], isDecision: false };
 }
 export function makeInput(): StepInput {
-  return { id: makeId(), label: null, communicationTypeId: null, supplier: null, isInternal: false };
+  return { id: makeId(), label: null, communicationTypeId: null, supplier: null };
 }
 export function makeOutput(): StepOutput {
-  return { id: makeId(), label: null, communicationTypeId: null, customer: null, isInternal: false };
+  return { id: makeId(), label: null, communicationTypeId: null, customer: null };
 }
 export function makeParty(): PartyRef {
   return { id: makeId(), label: null, kind: null, functionId: null, externalId: null };
@@ -122,7 +118,6 @@ export async function loadSteps(processId: string): Promise<SipocStep[]> {
         id: i.id,
         label: i.label,
         communicationTypeId: i.communication_type_id,
-        isInternal: !!i.is_internal,
         supplier:
           i.supplier_label === null
             ? null
@@ -140,7 +135,6 @@ export async function loadSteps(processId: string): Promise<SipocStep[]> {
         id: o.id,
         label: o.label,
         communicationTypeId: o.communication_type_id,
-        isInternal: !!o.is_internal,
         customer:
           o.customer_label === null
             ? null
@@ -183,7 +177,6 @@ function inputRow(input: StepInput, position: number, stepId: string) {
     supplier_function_id: input.supplier ? input.supplier.functionId : null,
     supplier_external_id: input.supplier ? input.supplier.externalId : null,
     communication_type_id: input.communicationTypeId,
-    is_internal: input.isInternal,
   };
 }
 
@@ -198,7 +191,6 @@ function outputRow(output: StepOutput, position: number, stepId: string) {
     customer_function_id: output.customer ? output.customer.functionId : null,
     customer_external_id: output.customer ? output.customer.externalId : null,
     communication_type_id: output.communicationTypeId,
-    is_internal: output.isInternal,
   };
 }
 

@@ -298,7 +298,7 @@ export default function ProcessPage() {
 
   function saveFieldDetails(
     target: FieldTarget,
-    fields: { label: string | null; communicationTypeId: string | null; isInternal: boolean },
+    fields: { label: string | null; communicationTypeId: string | null },
   ) {
     if (!steps) return;
     const step = steps[target.stepIdx];

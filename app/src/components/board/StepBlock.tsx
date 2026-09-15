@@ -49,6 +49,12 @@ export default function StepBlock({
           const input = step.inputs[r];
           const output = step.outputs[r];
           const gridRow = r + 1;
+          // AO-online-stijl: intern/extern wordt bij de herkomst/bestemming
+          // zelf gekozen (PartyRef.kind) — dat bepaalt de kleur van zowel
+          // dat blokje als het bijbehorende input/output-blokje, geen losse
+          // vraag bij input/output zelf.
+          const supplierInternal = input?.supplier?.kind === "intern";
+          const customerInternal = output?.customer?.kind === "intern";
 
           return (
             <Fragment key={r}>
@@ -59,7 +65,7 @@ export default function StepBlock({
                     <PartyBox
                       label={partyResolvedLabel(input.supplier, functionsList, externalPartiesList)}
                       placeholder={COLS.supplier}
-                      className="box-supplier"
+                      className={`box-supplier${supplierInternal ? " box-internal" : ""}`}
                       editable={canEdit}
                       onOpen={() => actions.openPartyModal("supplier", stepIdx, r)}
                     />
@@ -85,7 +91,7 @@ export default function StepBlock({
                     <EditableBox
                       value={input.label}
                       placeholder={COLS.input}
-                      className={`box-input${input.isInternal ? " box-internal" : ""}`}
+                      className={`box-input${supplierInternal ? " box-internal" : ""}`}
                       editable={canEdit}
                       onCommit={(v) => actions.renameInput(stepIdx, r, v)}
                       onOpenDetails={() => actions.openFieldModal("input", stepIdx, r)}
@@ -175,7 +181,7 @@ export default function StepBlock({
                     <EditableBox
                       value={output.label}
                       placeholder={COLS.output}
-                      className={`box-output${output.isInternal ? " box-internal" : ""}`}
+                      className={`box-output${customerInternal ? " box-internal" : ""}`}
                       editable={canEdit}
                       onCommit={(v) => actions.renameOutput(stepIdx, r, v)}
                       onOpenDetails={() => actions.openFieldModal("output", stepIdx, r)}
@@ -214,7 +220,7 @@ export default function StepBlock({
                     <PartyBox
                       label={partyResolvedLabel(output.customer, functionsList, externalPartiesList)}
                       placeholder={COLS.customer}
-                      className="box-customer"
+                      className={`box-customer${customerInternal ? " box-internal" : ""}`}
                       editable={canEdit}
                       onOpen={() => actions.openPartyModal("customer", stepIdx, r)}
                     />

@@ -187,8 +187,12 @@ input.box {
   color: var(--color-danger);
 }
 
-/* Input/output: lichtgrijs (extern/onbekend) of blauw met witte tekst
-   zodra "Intern" is aangevinkt. */
+/* Herkomst/bestemming en het bijbehorende input/output-blokje: lichtgrijs
+   (extern/onbekend) of blauw met witte tekst zodra de herkomst/bestemming
+   op "Intern" staat — die keuze (PartyRef.kind) bepaalt de kleur van
+   beide blokjes samen, zie StepBlock. */
+.box-supplier.box-internal,
+.box-customer.box-internal,
 .box-input.box-internal,
 .box-output.box-internal {
   background: var(--color-accent);
@@ -196,6 +200,8 @@ input.box {
   color: #ffffff;
   font-weight: 600;
 }
+.box-supplier.box-internal.placeholder,
+.box-customer.box-internal.placeholder,
 .box-input.box-internal.placeholder,
 .box-output.box-internal.placeholder {
   color: rgba(255, 255, 255, 0.75);
