@@ -25,6 +25,7 @@ export default function ProcessChainsGraph({ nodes, edges }: ProcessChainsGraphP
       type: "chainNode",
       position: posById.get(n.id) ?? { x: 0, y: 0 },
       data: {
+        processId: n.processId,
         processName: n.processName || "Naamloos proces",
         stepLabel: n.stepLabel || "Naamloze activiteit",
       },
