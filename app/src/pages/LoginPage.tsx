@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 type Mode = "link" | "password";
 
 export default function LoginPage() {
-  const [mode, setMode] = useState<Mode>("link");
+  const [mode, setMode] = useState<Mode>("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");

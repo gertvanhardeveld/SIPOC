@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../lib/AuthContext";
 import { fetchEditableProcessIds, fetchProcessList } from "../lib/processes";
+import { createUserWithPassword } from "../lib/adminUsers";
 import type { ProcessSummary } from "../lib/types";
 import ProcessEditorsField from "../components/ProcessEditorsField";
 
@@ -27,6 +28,95 @@ function RoleBadge({ role }: { role: Role }) {
     <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${ROLE_CLASS[role]}`}>
       {ROLE_LABEL[role]}
     </span>
+  );
+}
+
+/** Nieuw account aanmaken met een eerste wachtwoord — de gebruiker kan
+ * daarna direct inloggen (e-mail + dit wachtwoord) en het zelf wijzigen
+ * via "Wachtwoord instellen" in de zijbalk. */
+function CreateUserPanel() {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState<"idle" | "saving" | "error" | "done">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setStatus("error");
+      setErrorMessage("Vul een e-mailadres in.");
+      return;
+    }
+    if (password.length < 8) {
+      setStatus("error");
+      setErrorMessage("Gebruik minstens 8 tekens voor het wachtwoord.");
+      return;
+    }
+    setStatus("saving");
+    try {
+      await createUserWithPassword(trimmedEmail, password);
+      setStatus("done");
+      setEmail("");
+      setPassword("");
+    } catch (err) {
+      setStatus("error");
+      setErrorMessage(err instanceof Error ? err.message : "Onbekende fout.");
+    }
+  }
+
+  return (
+    <div className="mb-6 rounded-lg border border-border bg-panel p-4">
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((o) => !o);
+          setStatus("idle");
+        }}
+        className="text-[13px] font-medium text-accent hover:underline"
+      >
+        {open ? "Nieuwe gebruiker verbergen" : "+ Nieuwe gebruiker aanmaken"}
+      </button>
+      {open && (
+        <form onSubmit={handleSubmit} className="mt-3 flex max-w-sm flex-col gap-3">
+          <div className="modal-field">
+            <label htmlFor="new-user-email">E-mailadres</label>
+            <input
+              id="new-user-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <div className="modal-field">
+            <label htmlFor="new-user-password">Eerste wachtwoord</label>
+            <input
+              id="new-user-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+          </div>
+          {status === "error" && <p className="text-sm text-danger">{errorMessage}</p>}
+          {status === "done" && (
+            <p className="text-sm text-dark-text">
+              Gebruiker aangemaakt. Geef het e-mailadres en wachtwoord door — ze kunnen daarmee direct inloggen en
+              er daarna zelf een nieuw wachtwoord van maken.
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={status === "saving"}
+            className="self-start rounded-md bg-accent px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+          >
+            {status === "saving" ? "Bezig…" : "Gebruiker aanmaken"}
+          </button>
+        </form>
+      )}
+    </div>
   );
 }
 
@@ -80,6 +170,8 @@ export default function AccessPage() {
         <h1 className="text-xl font-bold">Toegang</h1>
         <p className="text-[12.5px] text-grey-text">Wie mag welk proces bewerken.</p>
       </header>
+
+      <CreateUserPanel />
 
       <div className="mb-6 space-y-1.5 rounded-lg border border-border bg-panel p-4 text-[12.5px] text-grey-text">
         <p>

@@ -426,11 +426,15 @@ er is (nog) geen uitnodig- of domeinbeperking.
 link kan een ingelogde gebruiker zelf een wachtwoord instellen, zodat
 latere logins niet meer op een nieuwe e-mail hoeven te wachten:
 
-- `LoginPage.tsx` heeft twee modi: "Stuur inloglink" (standaard,
-  `signInWithOtp`) en "Met wachtwoord" (`signInWithPassword`), met een
-  link om tussen beide te wisselen. Beide gebruiken hetzelfde
-  Supabase `email`-provider — er is geen dashboard-wijziging nodig,
-  wachtwoord-login werkt zodra er een wachtwoord op het account staat.
+- `LoginPage.tsx` heeft twee modi: "Met wachtwoord" (standaard,
+  `signInWithPassword`) en "Stuur inloglink" (`signInWithOtp`), met een
+  link om tussen beide te wisselen. Wachtwoord-login staat vooraan omdat
+  dat na een eerste keer inloggen (via link of via een door een andere
+  gebruiker aangemaakt account, zie hieronder) de sneller/directere weg
+  is; de magic link blijft als alternatief bereikbaar. Beide gebruiken
+  hetzelfde Supabase `email`-provider — er is geen dashboard-wijziging
+  nodig, wachtwoord-login werkt zodra er een wachtwoord op het account
+  staat.
 - Eenmaal ingelogd (via de magic link) toont de sidebar (`AccountRow`
   in `Sidebar.tsx`) naast "Uitloggen" ook "Wachtwoord instellen", die
   `SetPasswordModal` opent. Die modal roept
@@ -441,13 +445,56 @@ latere logins niet meer op een nieuwe e-mail hoeven te wachten:
   wachtwoord kwijt is, gebruikt gewoon opnieuw de magic link en stelt
   eventueel een nieuw wachtwoord in.
 
+**Nieuwe gebruikers aanmaken met een eerste wachtwoord** — op
+`/toegang` (`AccessPage.tsx`) kan elke ingelogde gebruiker via
+"+ Nieuwe gebruiker aanmaken" (`CreateUserPanel`) een account voor
+iemand anders aanmaken met een e-mailadres en een zelfgekozen eerste
+wachtwoord, zonder dat daar een e-mail-round-trip voor nodig is:
+
+- De browser mag dit niet rechtstreeks bij Supabase Auth doen (dat
+  vereist de service-role-sleutel, die nooit in front-end-code mag
+  staan), dus loopt dit via een Supabase **Edge Function**
+  `admin-create-user` (`supabase/functions/admin-create-user/index.ts`
+  in de Supabase-projectconfig, gedeployed met `verify_jwt: true`).
+  De front-end roept 'm aan via `supabase.functions.invoke(...)`
+  (`lib/adminUsers.ts`), wat automatisch het huidige sessie-token
+  meestuurt.
+- De functie gebruikt intern `auth.admin.createUser({ email, password,
+  email_confirm: true })` met de service-role-sleutel (alleen
+  beschikbaar in de Edge Function-runtime, via `SUPABASE_SERVICE_ROLE_KEY`).
+  `email_confirm: true` zorgt dat het account meteen bevestigd is — de
+  nieuwe gebruiker kan direct met dat e-mailadres + wachtwoord inloggen
+  (in wachtwoord-modus op het inlogscherm), zonder eerst een
+  bevestigingsmail te hoeven openen. Ze kunnen het wachtwoord daarna
+  zelf wijzigen via dezelfde "Wachtwoord instellen"-flow als hierboven.
+- `verify_jwt: true` is de enige toegangscontrole: elke ingelogde
+  gebruiker mag dit aanroepen, niet alleen een aparte beheerdersrol —
+  bewust dezelfde, voor nu bredere, testfase-aanpak als de tijdelijk
+  verruimde bewerkrechten (zie 6b). Dit kan later verder afgeschermd
+  worden (bv. tot een vaste lijst e-mailadressen) als daar behoefte aan
+  ontstaat.
+
 ### 6b. Autorisatie: wie mag wat
 
 Simpel model, bewust gekozen als eerste stap (zie ook eerdere sectie
 "Toegang en beveiliging"): **iedereen die ingelogd is mag alle processen
-zien**; bewerken mag alleen de **eigenaar** (`processes.created_by`,
-gezet bij het aanmaken) of iemand op de **bewerkerslijst**
-(`process_editors`).
+zien**; bewerken mag in het ontwerp alleen de **eigenaar**
+(`processes.created_by`, gezet bij het aanmaken) of iemand op de
+**bewerkerslijst** (`process_editors`).
+
+> **TIJDELIJK (testfase, sinds migratie `temp_open_up_edit_rights_for_testing`):**
+> deze eigenaar/bewerker-beperking staat momenteel uit. De RLS-functie
+> `public.can_edit_process(pid)` geeft nu voor élke ingelogde gebruiker
+> `true` terug (`select auth.uid() is not null`), en de front-end-check
+> `canEditProcess` in `lib/processes.ts` doet hetzelfde — dus iedereen
+> mag elk proces bewerken, ongeacht eigenaarschap. Bedoeld om met
+> meerdere mensen tegelijk te kunnen testen zonder eerst overal
+> bewerkers te moeten toevoegen. De oorspronkelijke logica staat in
+> beide bestanden in commentaar, klaar om terug te zetten.
+
+De rest van deze paragraaf beschrijft het onderliggende, bedoelde model
+(zoals het weer wordt zodra de versoepeling hierboven ongedaan wordt
+gemaakt):
 
 - De eigenaar beheert die bewerkerslijst zelf, in het procesformulier
   (deel 5d) — door een e-mailadres in te typen. Dat moet horen bij een
