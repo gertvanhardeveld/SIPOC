@@ -38,9 +38,21 @@ er is geen aparte "opslaan"-knop.
 - **Procesnaam-veld**: bovenaan de hoofdinhoud, boven de kolomkoppen.
   Zelfde bewerk-interactie als de rechthoeken in het diagram: klikken
   maakt hem bewerkbaar, leeg = het label **"Procesnaam"** in lichtgrijs.
-- **Sync-status**: rechts van het procesnaam-veld, toont
-  "Opgeslagen" / "Bezig met opslaan…" / "Opslaan mislukt — controleer je
-  verbinding".
+- **Sync-status**: rechts van het procesnaam-veld, toont bij het
+  opslaan/mislukken "Bezig met opslaan…" / "Opslaan mislukt —
+  controleer je verbinding" (de rusttoestand "Opgeslagen" wordt niet
+  meer getoond).
+- **Download-knoppen** (nieuwe React-app, `app/`), rechts van het
+  procesnaam-veld: een schaduw/afbeelding-icoon downloadt een PNG
+  ("foto") van de procesnaam + het SIPOC-diagram, zonder +/×-knoppen of
+  andere bewerk-chrome (client-side via `html-to-image`, met een
+  `filter` die die elementen uitsluit van de render — zie
+  `ProcessPage.tsx`'s `handleDownloadPng`). Een pijl-in-tray-icoon ernaast
+  opent de browser-afdrukdialoog (`window.print()`) voor een PDF/afdruk,
+  met dezelfde opschoning via `@media print`-CSS, en met liggende
+  paginastand zodat de van-nature brede 5-koloms lay-out niet
+  onnodig smal (en daardoor verhoudingsgewijs "uitgerekt") wordt
+  afgedrukt.
 - **Het SIPOC-diagram zelf** (kolommen, grid, lijnen met pijlpunten,
   +/×-knoppen op elke rechthoek) werkt exact zoals eerder gespecificeerd
   — zie de knoppentabel in deel 7 van de vorige versie van dit document

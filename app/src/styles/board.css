@@ -378,7 +378,8 @@ input.box {
   display: inline-block;
   margin-left: 8px;
 }
-.download-icon-btn {
+.download-icon-btn,
+.png-icon-btn {
   flex: 0 0 auto;
   width: 30px;
   height: 30px;
@@ -392,7 +393,8 @@ input.box {
   cursor: pointer;
   padding: 0;
 }
-.download-icon-btn:hover {
+.download-icon-btn:hover,
+.png-icon-btn:hover {
   border-color: var(--color-accent);
   color: var(--color-accent);
   background: var(--color-accent-bg);
@@ -409,6 +411,7 @@ input.box {
   .sync-status,
   .readonly-notice,
   .download-icon-btn,
+  .png-icon-btn,
   .minus,
   .addbtn,
   .box-link-arrow {

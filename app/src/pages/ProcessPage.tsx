@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toPng } from "html-to-image";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../lib/AuthContext";
@@ -145,6 +146,35 @@ export default function ProcessPage() {
   function handleRenameProcess(value: string | null) {
     setName(value);
     persistProcess({ name: value });
+  }
+
+  const captureRef = useRef<HTMLDivElement>(null);
+
+  /** Downloadt een PNG "foto" van de procesnaam + het bord, zonder de
+   * +/--knoppen en andere bewerk-chrome — dezelfde insteek als de
+   * afdruk-knop, maar als kant-en-klaar afbeeldingsbestand i.p.v. via de
+   * browser-afdrukdialoog. */
+  async function handleDownloadPng() {
+    const node = captureRef.current;
+    if (!node) return;
+    const hiddenClasses = [
+      "minus",
+      "addbtn",
+      "box-link-arrow",
+      "download-icon-btn",
+      "png-icon-btn",
+      "sync-status",
+      "readonly-notice",
+    ];
+    const dataUrl = await toPng(node, {
+      backgroundColor: "#ffffff",
+      pixelRatio: 2,
+      filter: (el) => !(el instanceof HTMLElement && hiddenClasses.some((c) => el.classList.contains(c))),
+    });
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = `${name || "sipoc"}.png`;
+    link.click();
   }
 
   function handleSaveProcessDetails(fields: {
@@ -408,25 +438,28 @@ export default function ProcessPage() {
 
   return (
     <div style={{ padding: "28px 24px 80px" }}>
-      <ProcessHeader
-        name={name}
-        canEdit={editable}
-        syncStatus={syncStatus}
-        onRename={handleRenameProcess}
-        onOpenDetails={() => setProcessModalOpen(true)}
-      />
-
-      {steps ? (
-        <Board
-          steps={steps}
+      <div ref={captureRef}>
+        <ProcessHeader
+          name={name}
           canEdit={editable}
-          functionsList={functionsList}
-          externalPartiesList={externalPartiesList}
-          actions={actions}
+          syncStatus={syncStatus}
+          onRename={handleRenameProcess}
+          onOpenDetails={() => setProcessModalOpen(true)}
+          onDownloadPng={handleDownloadPng}
         />
-      ) : (
-        <div className="board-wrap py-16 text-center text-sm text-grey-text">Bord laden…</div>
-      )}
+
+        {steps ? (
+          <Board
+            steps={steps}
+            canEdit={editable}
+            functionsList={functionsList}
+            externalPartiesList={externalPartiesList}
+            actions={actions}
+          />
+        ) : (
+          <div className="board-wrap py-16 text-center text-sm text-grey-text">Bord laden…</div>
+        )}
+      </div>
 
       <footer className="board-footer">Herkomst &middot; Input &middot; Activiteit &middot; Output &middot; Bestemming</footer>
 
