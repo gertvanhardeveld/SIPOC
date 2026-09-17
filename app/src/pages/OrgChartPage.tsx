@@ -1,38 +1,77 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../lib/AuthContext";
-import { addDepartment, deleteDepartment, fetchOrgTree, renameDepartment } from "../lib/orgChart";
+import {
+  addChildInTree,
+  addDepartment,
+  deleteDepartment,
+  fetchOrgTree,
+  removeNodeInTree,
+  renameDepartment,
+  renameNodeInTree,
+  type OrgNode,
+} from "../lib/orgChart";
 import OrgTreeNode from "../components/orgchart/OrgTreeNode";
+
+const QUERY_KEY = ["org-tree"];
 
 /** Organogram van afdelingen: één gedeelde boom (los van de SIPOC-
  * processen), met dezelfde +/x-bewerkinteractie als het SIPOC-bord. De
  * bovenste afdeling bestaat altijd al (aangemaakt via migratie) en kan
- * niet verwijderd worden — zie OrgTreeNode's `isRoot`. */
+ * niet verwijderd worden — zie OrgTreeNode's `isRoot`.
+ *
+ * Elke mutatie werkt optimistisch (de boom in de React Query-cache
+ * wordt meteen lokaal aangepast, vóór het netwerkverzoek terugkomt) —
+ * zelfde directe respons als het SIPOC-bord, dat lokale state bijhoudt
+ * i.p.v. na elke wijziging op een refetch te wachten. Zonder dit voelde
+ * bv. hernoemen-vlak-na-toevoegen onbetrouwbaar: de nieuwe rechthoek
+ * verscheen pas ná een round-trip, dus een klik erop kon op niets (nog)
+ * bestaands landen. */
 export default function OrgChartPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const canEdit = !!user;
 
   const { data: root, isLoading, isError, error } = useQuery({
-    queryKey: ["org-tree"],
+    queryKey: QUERY_KEY,
     queryFn: fetchOrgTree,
   });
 
-  function invalidate() {
-    queryClient.invalidateQueries({ queryKey: ["org-tree"] });
+  async function optimisticUpdate(updater: (previous: OrgNode) => OrgNode) {
+    await queryClient.cancelQueries({ queryKey: QUERY_KEY });
+    const previous = queryClient.getQueryData<OrgNode>(QUERY_KEY);
+    if (previous) queryClient.setQueryData<OrgNode>(QUERY_KEY, updater(previous));
+    return { previous };
+  }
+
+  function rollback(context: { previous?: OrgNode } | undefined) {
+    if (context?.previous) queryClient.setQueryData(QUERY_KEY, context.previous);
+  }
+
+  function settle() {
+    queryClient.invalidateQueries({ queryKey: QUERY_KEY });
   }
 
   const addMutation = useMutation({
-    mutationFn: ({ parentId, position }: { parentId: string; position: number }) =>
-      addDepartment(parentId, position),
-    onSuccess: invalidate,
+    mutationFn: ({ id, parentId, position }: { id: string; parentId: string; position: number }) =>
+      addDepartment(id, parentId, position),
+    onMutate: ({ id, parentId }) =>
+      optimisticUpdate((prev) => addChildInTree(prev, parentId, { id, label: null, children: [] })),
+    onError: (_err, _vars, context) => rollback(context),
+    onSettled: settle,
   });
+
   const renameMutation = useMutation({
     mutationFn: ({ id, label }: { id: string; label: string | null }) => renameDepartment(id, label),
-    onSuccess: invalidate,
+    onMutate: ({ id, label }) => optimisticUpdate((prev) => renameNodeInTree(prev, id, label)),
+    onError: (_err, _vars, context) => rollback(context),
+    onSettled: settle,
   });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteDepartment(id),
-    onSuccess: invalidate,
+    onMutate: (id) => optimisticUpdate((prev) => removeNodeInTree(prev, id)),
+    onError: (_err, _id, context) => rollback(context),
+    onSettled: settle,
   });
 
   if (isLoading) {
@@ -59,7 +98,7 @@ export default function OrgChartPage() {
             isRoot
             canEdit={canEdit}
             onRename={(id, label) => renameMutation.mutate({ id, label })}
-            onAddChild={(parentId, position) => addMutation.mutate({ parentId, position })}
+            onAddChild={(parentId, position) => addMutation.mutate({ id: crypto.randomUUID(), parentId, position })}
             onDelete={(id) => deleteMutation.mutate(id)}
           />
         </ul>

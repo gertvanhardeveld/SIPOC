@@ -42,11 +42,34 @@ export async function fetchOrgTree(): Promise<OrgNode> {
   return root;
 }
 
-export async function addDepartment(parentId: string, position: number): Promise<void> {
+/** `id` wordt door de aanroeper gegenereerd (niet hier) zodat dezelfde
+ * id gebruikt kan worden voor een optimistische lokale toevoeging vóór
+ * het netwerkverzoek terugkomt — zie OrgChartPage. */
+export async function addDepartment(id: string, parentId: string, position: number): Promise<void> {
   const { error } = await supabase
     .from("org_departments")
-    .insert({ id: crypto.randomUUID(), parent_id: parentId, position, label: null });
+    .insert({ id, parent_id: parentId, position, label: null });
   if (error) throw error;
+}
+
+// ---------------------------------------------------------------------
+// Pure boom-helpers voor optimistische updates: de React Query-cache
+// bevat één OrgNode (de root, met geneste children); deze bouwen een
+// gewijzigde kopie zonder de server-respons af te wachten.
+// ---------------------------------------------------------------------
+
+export function renameNodeInTree(root: OrgNode, id: string, label: string | null): OrgNode {
+  if (root.id === id) return { ...root, label };
+  return { ...root, children: root.children.map((c) => renameNodeInTree(c, id, label)) };
+}
+
+export function addChildInTree(root: OrgNode, parentId: string, child: OrgNode): OrgNode {
+  if (root.id === parentId) return { ...root, children: [...root.children, child] };
+  return { ...root, children: root.children.map((c) => addChildInTree(c, parentId, child)) };
+}
+
+export function removeNodeInTree(root: OrgNode, id: string): OrgNode {
+  return { ...root, children: root.children.filter((c) => c.id !== id).map((c) => removeNodeInTree(c, id)) };
 }
 
 export async function renameDepartment(id: string, label: string | null): Promise<void> {
