@@ -23,7 +23,11 @@
 }
 .org-tree ul {
   display: flex;
-  align-items: center;
+  /* flex-start, niet center: anders duwt een kind met een eigen (dus
+     hogere) subboom de blokjes van zijn kortere broertjes/zusjes lager
+     — ze moeten allemaal op dezelfde hoogte beginnen, ongeacht hoe
+     diep hun eigen tak daaronder doorloopt. */
+  align-items: flex-start;
   padding-top: 30px;
   /* Zodat ul::before hieronder positioneert t.o.v. déze <ul> (waar de
      verticale lijn vanaf hoort te lopen) i.p.v. — bij gebrek aan een
