@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./lib/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Sidebar from "./components/Sidebar";
+import TopBar from "./components/TopBar";
 import EmptyState from "./pages/EmptyState";
 import ProcessPage from "./pages/ProcessPage";
 import AccessPage from "./pages/AccessPage";
@@ -25,14 +26,17 @@ export default function App() {
   return (
     <div className="app-shell flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="app-main flex-1 overflow-y-auto">
-        <Routes>
-          <Route path="/" element={<EmptyState />} />
-          <Route path="/proces/:id" element={<ProcessPage />} />
-          <Route path="/toegang" element={<AccessPage />} />
-          <Route path="/procesketens" element={<ProcessChainsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+      <main className="app-main flex flex-1 flex-col overflow-hidden">
+        <TopBar />
+        <div className="app-content flex-1 overflow-y-auto">
+          <Routes>
+            <Route path="/" element={<EmptyState />} />
+            <Route path="/proces/:id" element={<ProcessPage />} />
+            <Route path="/toegang" element={<AccessPage />} />
+            <Route path="/procesketens" element={<ProcessChainsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
       </main>
     </div>
   );

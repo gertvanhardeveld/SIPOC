@@ -403,11 +403,13 @@ input.box {
 /* ---------- Afdrukken/downloaden: alleen het eindresultaat ---------- */
 @media print {
   .app-shell,
-  .app-main {
+  .app-main,
+  .app-content {
     height: auto !important;
     overflow: visible !important;
   }
   aside,
+  .top-bar,
   .sync-status,
   .readonly-notice,
   .download-icon-btn,

@@ -29,13 +29,21 @@ er is geen aparte "opslaan"-knop.
 └──────────────┴───────────────────────────────────────────────┘
 ```
 
-- **Sidebar** (links, vast): een zoekbalk, een "+ Nieuw proces"-knop, en
-  daaronder alle processen die een SIPOC hebben, alfabetisch gegroepeerd
-  per beginletter. Klikken op een naam laadt dat proces. Op hover
-  verschijnt een `×` om dat hele proces (en zijn SIPOC) te verwijderen.
-  Onder de 760px breed schuift de sidebar boven de hoofdinhoud in plaats
-  van ernaast.
-- **Procesnaam-veld**: bovenaan de hoofdinhoud, boven de kolomkoppen.
+- **Sidebar** (links, vast): linksboven wie is ingelogd (e-mailadres +
+  "Uitloggen"), daaronder een zoekbalk, een "+ Nieuw proces"-knop, en
+  daaronder alle processen die een SIPOC hebben. Klikken op een naam
+  laadt dat proces. Op hover verschijnt een `×` om dat hele proces (en
+  zijn SIPOC) te verwijderen. Onder de 760px breed schuift de sidebar
+  boven de hoofdinhoud in plaats van ernaast.
+- **Bovenbalk** (nieuwe React-app, `app/`, `TopBar.tsx`): een balk
+  boven de hoofdinhoud — begint dus pas na de sidebar, niet erboven.
+  Links de schakelaar **"SIPOC · Procesketens"** (verplaatst uit de
+  sidebar), rechts **"Wachtwoord"** (opent dezelfde
+  wachtwoord-instellen-modal als voorheen via de sidebar). Alle drie
+  woorden staan in hetzelfde lettertype/dezelfde grootte. Verdwijnt bij
+  afdrukken/PNG-downloaden (pure navigatie, geen onderdeel van "het
+  eindresultaat").
+- **Procesnaam-veld**: bovenaan de hoofdinhoud, onder de bovenbalk, boven de kolomkoppen.
   Zelfde bewerk-interactie als de rechthoeken in het diagram: klikken
   maakt hem bewerkbaar, leeg = het label **"Procesnaam"** in lichtgrijs.
 - **Sync-status**: rechts van het procesnaam-veld, toont bij het

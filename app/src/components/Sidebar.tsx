@@ -1,20 +1,17 @@
 import { useMemo, useState, type MouseEvent } from "react";
-import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
+import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../lib/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import { createProcess, deleteProcess, fetchProcessList } from "../lib/processes";
 import type { ProcessSummary } from "../lib/types";
-import SetPasswordModal from "./modals/SetPasswordModal";
 
 export default function Sidebar() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const { id: activeId } = useParams();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const onChains = location.pathname.startsWith("/procesketens");
 
   const { data: processes = [], isLoading } = useQuery({
     queryKey: ["processes"],
@@ -49,21 +46,6 @@ export default function Sidebar() {
 
   return (
     <aside className="flex h-screen w-72 shrink-0 flex-col border-r border-border bg-panel p-4">
-      <div className="flex items-center gap-2">
-        <Link
-          to="/"
-          className={`text-lg font-bold ${onChains ? "text-grey-text hover:text-header-text" : "text-header-text"}`}
-        >
-          SIPOC
-        </Link>
-        <span className="text-grey-text">·</span>
-        <Link
-          to="/procesketens"
-          className={`text-sm font-semibold ${onChains ? "text-header-text" : "text-grey-text hover:text-header-text"}`}
-        >
-          Procesketens
-        </Link>
-      </div>
       <AccountRow />
 
       <NavLink
@@ -138,31 +120,18 @@ export default function Sidebar() {
 
 function AccountRow() {
   const { user } = useAuth();
-  const [settingPassword, setSettingPassword] = useState(false);
   if (!user) return null;
   return (
-    <>
-      <div className="mt-3 text-[12.5px] text-grey-text">
-        <div className="truncate">{user.email}</div>
-        <div className="mt-1 flex flex-wrap gap-x-2">
-          <button
-            type="button"
-            onClick={() => setSettingPassword(true)}
-            className="text-accent hover:underline"
-          >
-            Wachtwoord instellen
-          </button>
-          <button
-            type="button"
-            onClick={() => supabase.auth.signOut()}
-            className="text-accent hover:underline"
-          >
-            Uitloggen
-          </button>
-        </div>
-      </div>
-      {settingPassword && <SetPasswordModal onClose={() => setSettingPassword(false)} />}
-    </>
+    <div className="text-[12.5px] text-grey-text">
+      <div className="truncate">{user.email}</div>
+      <button
+        type="button"
+        onClick={() => supabase.auth.signOut()}
+        className="mt-1 text-accent hover:underline"
+      >
+        Uitloggen
+      </button>
+    </div>
   );
 }
 
