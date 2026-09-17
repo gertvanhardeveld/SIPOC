@@ -37,9 +37,9 @@ er is geen aparte "opslaan"-knop.
   boven de hoofdinhoud in plaats van ernaast.
 - **Bovenbalk** (nieuwe React-app, `app/`, `TopBar.tsx`): een balk
   boven de hoofdinhoud — begint dus pas na de sidebar, niet erboven.
-  Links de schakelaar **"SIPOC · Procesketens"** (verplaatst uit de
-  sidebar), rechts **"Wachtwoord"** (opent dezelfde
-  wachtwoord-instellen-modal als voorheen via de sidebar). Alle drie
+  Links de schakelaar **"SIPOC · Procesketens · Organogram"**
+  (verplaatst uit de sidebar), rechts **"Wachtwoord"** (opent dezelfde
+  wachtwoord-instellen-modal als voorheen via de sidebar). Alle vier
   woorden staan in hetzelfde lettertype/dezelfde grootte. Verdwijnt bij
   afdrukken/PNG-downloaden (pure navigatie, geen onderdeel van "het
   eindresultaat").
@@ -385,11 +385,11 @@ Deze vier velden leven direct op de `processes`-rij zelf (`description`,
 
 Een aparte weergave, los van het bord van één proces: hoe processen via
 gekoppelde activiteiten (deel 5b, Intern → Procesactiviteit) aan elkaar
-hangen. Bereikbaar via **"Procesketens"** naast **"SIPOC"** linksboven in
-de zijbalk (`/procesketens`) — samen een simpele toggle tussen "het
-gewone werkscherm" en "het overzicht van koppelingen"; de rest van de
-zijbalk (zoeken, procesboom, "+ Nieuw proces") blijft altijd zichtbaar,
-alleen het hoofdscherm wisselt.
+hangen. Bereikbaar via **"Procesketens"** naast **"SIPOC"** in de
+bovenbalk boven de hoofdinhoud (`/procesketens`, zie deel 2) — samen
+met "Organogram" (deel 5f) een simpele toggle tussen de drie
+hoofdschermen; de zijbalk (zoeken, procesboom, "+ Nieuw proces") blijft
+altijd zichtbaar, alleen het hoofdscherm wisselt.
 
 - Elke rechthoek ("node") is één **activiteit** die aan een andere
   activiteit (in een ander proces) gekoppeld is: procesnaam vetgedrukt,
@@ -416,6 +416,43 @@ alleen het hoofdscherm wisselt.
   `sipoc_inputs`/`sipoc_steps`/`processes` zijn allemaal open leesbaar
   voor elke ingelogde gebruiker, zie deel 6b) — dit overzicht toont dus
   ook koppelingen van processen die je zelf niet mag bewerken.
+
+## 5f. Organogram (alleen nieuwe React-app)
+
+Een derde hoofdscherm, naast **"SIPOC"** en **"Procesketens"** in de
+bovenbalk (`/organogram`): een boomstructuur van afdelingen, met
+dezelfde bewerk-interactie (klikken om te hernoemen, +/× om toe te
+voegen/verwijderen) als het SIPOC-bord, en dezelfde blokjes-stijl
+(`.box-process` — wit met blauwe rand, hetzelfde lettertype). Volledig
+los van de SIPOC-processen: één gedeelde boom (tabel
+`org_departments`), niet per proces.
+
+- **Bovenste afdeling** (`parent_id is null`) wordt eenmalig aangemaakt
+  via de migratie (`create_org_departments`), niet door de app —
+  bestaat dus altijd al, met een lege naam (toont de grijze
+  placeholder-tekst **"Afdeling"**, net als een leeg procesnaam-veld).
+  Kan niet verwijderd worden (geen verwijderknop op die ene rij).
+- **Uitbreiden**: onder elke afdeling staat een "+" (laatste `<li>` in
+  haar kinderrij — zie hieronder waarom). Eerste klik voegt een
+  onderliggende afdeling toe; omdat de "+" zelf steeds de laatste blijft
+  staan, voegt een volgende klik een afdeling ernáást toe in diezelfde
+  rij — zo breidt een rij zich naar rechts uit. Elke toegevoegde
+  afdeling krijgt op haar beurt weer haar eigen "+" eronder, waarmee een
+  hele nieuwe rij (één niveau dieper) kan ontstaan.
+- **Verwijderen**: elke niet-bovenste afdeling heeft een verwijderknop
+  (`.minus`, zelfde stijl als op het SIPOC-bord); dat verwijdert ook
+  haar hele subboom (`org_departments.parent_id` heeft `ON DELETE
+  CASCADE`).
+- **Boomlijntjes**: een bekende, puur-CSS techniek (geneste `<ul>/<li>`
+  met `::before`/`::after`-randen, zie `styles/orgchart.css`) — geen
+  canvas- of graaf-library nodig, in tegenstelling tot Procesketens
+  (dat wél pan/zoom nodig heeft voor losse, verspreide koppelingen; een
+  organogram is één samenhangende boom die prima past met gewone
+  paginascroll).
+- **Rechten**: zelfde testfase-versoepeling als elders — elke ingelogde
+  gebruiker mag het organogram lezen én bewerken (RLS-policy
+  `auth.uid() is not null`, geen eigenaar-/bewerkerslijst-concept zoals
+  bij processen).
 
 ## 6. Toegang en beveiliging
 

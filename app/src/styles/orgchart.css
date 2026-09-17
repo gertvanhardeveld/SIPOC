@@ -1,0 +1,99 @@
+/*
+ * Organogram: een boomstructuur van afdelingen. De blokjes hergebruiken
+ * .box/.box-process en de +/x-knoppen .addbtn/.minus uit board.css —
+ * zelfde lettertype en kleuren als het SIPOC-bord. De boomlijntjes zelf
+ * zijn een bekende, puur-CSS techniek (::before/::after op elke <li>
+ * tekenen de horizontale "bus"-lijn naar broertjes/zusjes, ::before op
+ * elke geneste <ul> tekent de verticale lijn omlaag vanaf de ouder).
+ */
+
+.org-tree-wrap {
+  overflow-x: auto;
+  padding: 32px 24px 60px;
+}
+
+.org-tree,
+.org-tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.org-tree {
+  display: inline-flex;
+}
+.org-tree ul {
+  display: flex;
+  align-items: center;
+  padding-top: 30px;
+}
+.org-tree li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  padding: 30px 14px 0 14px;
+}
+
+/* Horizontale verbindingslijn tussen broertjes/zusjes, getekend als de
+   linker- en rechterhelft op elk kind afzonderlijk. */
+.org-tree li::before,
+.org-tree li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: 30px;
+  border-top: 1.5px solid var(--color-line);
+}
+.org-tree li::after {
+  right: auto;
+  left: 50%;
+  border-left: 1.5px solid var(--color-line);
+}
+.org-tree li:only-child::before,
+.org-tree li:only-child::after {
+  display: none;
+}
+.org-tree li:only-child {
+  padding-top: 0;
+}
+.org-tree li:first-child::before,
+.org-tree li:last-child::after {
+  border: 0 none;
+}
+.org-tree li:last-child::before {
+  border-right: 1.5px solid var(--color-line);
+  border-radius: 0 6px 0 0;
+}
+.org-tree li:first-child::after {
+  border-radius: 6px 0 0 0;
+}
+/* De bovenste afdeling zelf heeft geen broertjes/zusjes/ouder. */
+.org-tree > li {
+  padding-top: 0;
+}
+.org-tree > li::before,
+.org-tree > li::after {
+  display: none;
+}
+
+/* Verticale lijn van een afdeling omlaag naar haar eigen kinderrij. */
+.org-tree li ul::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-left: 1.5px solid var(--color-line);
+  width: 0;
+  height: 30px;
+}
+
+.org-node {
+  position: relative;
+  width: 170px;
+}
+
+.org-add-btn {
+  align-self: center;
+}
