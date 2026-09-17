@@ -10,17 +10,15 @@ interface OrgTreeNodeProps {
   onDelete: (id: string) => void;
 }
 
-/** Eén afdeling + haar subboom, recursief. De "+" om een afdeling toe te
- * voegen staat als laatste <li> ná de bestaande kinderen — zo blijft hij
- * op dezelfde plek staan (rechts van het rijtje) en groeit een rij
- * afdelingen steeds naar rechts uit, precies zoals gevraagd. Het is
- * bewust een <li> net als de echte kinderen (niet een los element erbuiten)
- * zodat hij meedoet met de CSS-boomlijntjes (org-tree.css): met 0
- * bestaande kinderen is de "+" dan het enige, rechte lijntje naar
- * beneden; met meerdere kinderen sluit hij netjes aan op de
- * horizontale verbindingslijn. */
+/** Eén afdeling + haar subboom, recursief. De "+" zit bewust NIET in de
+ * <ul>/<li> die de boomlijntjes tekent (org-tree.css): hij is geen
+ * afdeling, en meetellen als "sibling" gaf een kromme, asymmetrische
+ * lijn zodra er precies één echt kind bij stond (nooit meer
+ * :only-child, dus altijd de dubbele-tak-tekening i.p.v. een rechte
+ * lijn). In plaats daarvan staat de "+" los, naast (of — met nul
+ * kinderen — in z'n eentje onder) de <ul>, in dezelfde rij. */
 export default function OrgTreeNode({ node, isRoot, canEdit, onRename, onAddChild, onDelete }: OrgTreeNodeProps) {
-  const showChildrenRow = node.children.length > 0 || canEdit;
+  const hasChildren = node.children.length > 0;
 
   return (
     <li>
@@ -43,32 +41,34 @@ export default function OrgTreeNode({ node, isRoot, canEdit, onRename, onAddChil
           </button>
         )}
       </div>
-      {showChildrenRow && (
-        <ul>
-          {node.children.map((child) => (
-            <OrgTreeNode
-              key={child.id}
-              node={child}
-              isRoot={false}
-              canEdit={canEdit}
-              onRename={onRename}
-              onAddChild={onAddChild}
-              onDelete={onDelete}
-            />
-          ))}
-          {canEdit && (
-            <li>
-              <button
-                type="button"
-                className="addbtn org-add-btn"
-                title="Afdeling toevoegen"
-                onClick={() => onAddChild(node.id, node.children.length)}
-              >
-                +
-              </button>
-            </li>
+      {(hasChildren || canEdit) && (
+        <div className="org-children">
+          {hasChildren && (
+            <ul>
+              {node.children.map((child) => (
+                <OrgTreeNode
+                  key={child.id}
+                  node={child}
+                  isRoot={false}
+                  canEdit={canEdit}
+                  onRename={onRename}
+                  onAddChild={onAddChild}
+                  onDelete={onDelete}
+                />
+              ))}
+            </ul>
           )}
-        </ul>
+          {canEdit && (
+            <button
+              type="button"
+              className={`addbtn org-add-btn${hasChildren ? " org-add-btn--indented" : ""}`}
+              title="Afdeling toevoegen"
+              onClick={() => onAddChild(node.id, node.children.length)}
+            >
+              +
+            </button>
+          )}
+        </div>
       )}
     </li>
   );

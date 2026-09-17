@@ -25,6 +25,11 @@
   display: flex;
   align-items: center;
   padding-top: 30px;
+  /* Zodat ul::before hieronder positioneert t.o.v. déze <ul> (waar de
+     verticale lijn vanaf hoort te lopen) i.p.v. — bij gebrek aan een
+     eigen positioning-context — het verkeerd hoger opzoeken van de
+     ouder-<li>, wat een storend lijntje bóven de bovenste afdeling gaf. */
+  position: relative;
 }
 .org-tree li {
   display: flex;
@@ -94,6 +99,18 @@
   width: 170px;
 }
 
+/* De "+" staat bewust NIET in de <ul>/<li>-structuur hierboven (zie
+   OrgTreeNode.tsx) — hier dus los naast (of, zonder kinderen, alleen
+   onder) de kinderrij, met een marge die 'm verticaal laat aansluiten
+   op de blokjes in die rij. */
+.org-children {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
 .org-add-btn {
-  align-self: center;
+  margin-top: 13px;
+}
+.org-add-btn--indented {
+  margin-top: 43px;
 }
