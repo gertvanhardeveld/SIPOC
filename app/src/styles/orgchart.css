@@ -28,12 +28,6 @@
      — ze moeten allemaal op dezelfde hoogte beginnen, ongeacht hoe
      diep hun eigen tak daaronder doorloopt. */
   align-items: flex-start;
-  padding-top: 30px;
-  /* Zodat ul::before hieronder positioneert t.o.v. déze <ul> (waar de
-     verticale lijn vanaf hoort te lopen) i.p.v. — bij gebrek aan een
-     eigen positioning-context — het verkeerd hoger opzoeken van de
-     ouder-<li>, wat een storend lijntje bóven de bovenste afdeling gaf. */
-  position: relative;
 }
 .org-tree li {
   display: flex;
@@ -87,20 +81,77 @@
   display: none;
 }
 
-/* Verticale lijn van een afdeling omlaag naar haar eigen kinderrij. */
-.org-tree li ul::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 50%;
-  border-left: 1.5px solid var(--color-line);
-  width: 0;
-  height: 30px;
-}
-
 .org-node {
   position: relative;
   width: 170px;
+}
+
+/* Verticale verbinding van een afdeling naar haar kinderrij — dubbel
+   zo hoog als voorheen (60px i.p.v. 30px), zodat er in het midden
+   ruimte is voor stafafdelingen en de "+" om die toe te voegen. Deze
+   ene zone tekent de hele lijn (vroeger deed ul::before dat, maar dat
+   bestond alleen als er al gewone kinderen waren — een stafafdeling
+   moet ook zonder die kinderrij een lijn hebben om aan te hangen). */
+.org-connector {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Genoeg voor de dubbele afstand (was 30px) mét het stafblokje zelf
+     (~50-56px) gecentreerd erin, zonder dat het de rij eronder raakt. */
+  height: 96px;
+  gap: 14px;
+}
+.org-connector-center {
+  position: relative;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.org-connector-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  border-left: 1.5px solid var(--color-line);
+}
+.org-staff-add-btn {
+  position: relative;
+  z-index: 1;
+}
+
+/* Stafafdelingen: om en om links/rechts van de verticale lijn, elk
+   verbonden via een kort horizontaal lijntje (::before, met dezelfde
+   lengte als .org-connector's gap) naar hun buur of — de dichtstbije
+   op die kant — naar het midden. */
+.org-staff-side {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.org-staff-left {
+  justify-content: flex-end;
+}
+.org-staff-right {
+  justify-content: flex-start;
+}
+.org-staff-node::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 0;
+  border-top: 1.5px solid var(--color-line);
+}
+.org-staff-left .org-staff-node::before {
+  right: -14px;
+}
+.org-staff-right .org-staff-node::before {
+  left: -14px;
 }
 
 /* De "+" staat bewust NIET in de <ul>/<li>-structuur hierboven (zie
@@ -114,7 +165,4 @@
 }
 .org-add-btn {
   margin-top: 13px;
-}
-.org-add-btn--indented {
-  margin-top: 43px;
 }

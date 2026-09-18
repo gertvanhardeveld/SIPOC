@@ -449,6 +449,26 @@ los van de SIPOC-processen: één gedeelde boom (tabel
   (dat wél pan/zoom nodig heeft voor losse, verspreide koppelingen; een
   organogram is één samenhangende boom die prima past met gewone
   paginascroll).
+- **Stafafdelingen** (`org_departments.kind = 'staff'`, i.p.v. het
+  standaard `'line'`): hangen niet in de gewone kinderrij, maar aan de
+  verticale verbinding van een afdeling naar die rij — vandaar dat die
+  verbinding dubbel zo hoog is (96px) als een gewone rij-tot-rij-
+  afstand, met een "+" op het midden van de lijn. Om en om links/rechts
+  toegevoegd (`kind='staff' → side`), en bij een volgende op dezelfde
+  kant steeds één verder van het midden af (`nextStaffSlot` in
+  `lib/orgChart.ts` berekent dat uit de huidige stafafdelingen van die
+  ouder). Lichtgrijs gevuld (de kale `.box`-stijl, i.t.t. het wit met
+  blauwe rand van een gewone afdeling) met placeholder-tekst
+  **"Stafafdeling"**; geen eigen subboom/verdere uitbreiding.
+- **Optimistische updates**: elke mutatie (toevoegen/hernoemen/
+  verwijderen) past de React Query-cache meteen lokaal aan (`onMutate`),
+  vóór de server heeft geantwoord, met rollback bij een fout — zelfde
+  directe respons als het SIPOC-bord. Zonder dit wachtte elke wijziging
+  op een volledige round-trip + refetch, wat bij een tragere verbinding
+  onbetrouwbaar aanvoelde (een net toegevoegde afdeling was nog niet
+  zichtbaar, dus een klik erop om 'm een naam te geven kon op niets
+  bestaands landen — in de praktijk ontstonden zo een aantal naamloze
+  afdelingen).
 - **Rechten**: zelfde testfase-versoepeling als elders — elke ingelogde
   gebruiker mag het organogram lezen én bewerken (RLS-policy
   `auth.uid() is not null`, geen eigenaar-/bewerkerslijst-concept zoals

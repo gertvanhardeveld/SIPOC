@@ -8,6 +8,8 @@ import {
   removeNodeInTree,
   renameDepartment,
   renameNodeInTree,
+  type DepartmentKind,
+  type DepartmentSide,
   type OrgNode,
 } from "../lib/orgChart";
 import OrgTreeNode from "../components/orgchart/OrgTreeNode";
@@ -18,6 +20,10 @@ const QUERY_KEY = ["org-tree"];
  * processen), met dezelfde +/x-bewerkinteractie als het SIPOC-bord. De
  * bovenste afdeling bestaat altijd al (aangemaakt via migratie) en kan
  * niet verwijderd worden — zie OrgTreeNode's `isRoot`.
+ *
+ * Twee soorten kinderen: gewone ("line", de kinderrij die naar rechts
+ * uitbreidt) en stafafdelingen ("staff", die aan de verticale
+ * verbinding naar die rij hangen — zie OrgTreeNode voor de lay-out).
  *
  * Elke mutatie werkt optimistisch (de boom in de React Query-cache
  * wordt meteen lokaal aangepast, vóór het netwerkverzoek terugkomt) —
@@ -52,10 +58,23 @@ export default function OrgChartPage() {
   }
 
   const addMutation = useMutation({
-    mutationFn: ({ id, parentId, position }: { id: string; parentId: string; position: number }) =>
-      addDepartment(id, parentId, position),
-    onMutate: ({ id, parentId }) =>
-      optimisticUpdate((prev) => addChildInTree(prev, parentId, { id, label: null, children: [] })),
+    mutationFn: ({
+      id,
+      parentId,
+      position,
+      kind,
+      side,
+    }: {
+      id: string;
+      parentId: string;
+      position: number;
+      kind: DepartmentKind;
+      side: DepartmentSide | null;
+    }) => addDepartment(id, parentId, position, kind, side),
+    onMutate: ({ id, parentId, position, kind, side }) =>
+      optimisticUpdate((prev) =>
+        addChildInTree(prev, parentId, { id, label: null, kind, side, position, children: [] }),
+      ),
     onError: (_err, _vars, context) => rollback(context),
     onSettled: settle,
   });
@@ -98,7 +117,12 @@ export default function OrgChartPage() {
             isRoot
             canEdit={canEdit}
             onRename={(id, label) => renameMutation.mutate({ id, label })}
-            onAddChild={(parentId, position) => addMutation.mutate({ id: crypto.randomUUID(), parentId, position })}
+            onAddChild={(parentId, position) =>
+              addMutation.mutate({ id: crypto.randomUUID(), parentId, position, kind: "line", side: null })
+            }
+            onAddStaff={(parentId, side, position) =>
+              addMutation.mutate({ id: crypto.randomUUID(), parentId, position, kind: "staff", side })
+            }
             onDelete={(id) => deleteMutation.mutate(id)}
           />
         </ul>
