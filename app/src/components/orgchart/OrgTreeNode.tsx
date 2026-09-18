@@ -38,7 +38,15 @@ export default function OrgTreeNode({
   const leftStaff = staffChildren.filter((c) => c.side === "left").sort((a, b) => b.position - a.position);
   const rightStaff = staffChildren.filter((c) => c.side === "right").sort((a, b) => a.position - b.position);
   const hasLineChildren = lineChildren.length > 0;
-  const showConnectorZone = hasLineChildren || staffChildren.length > 0 || canEdit;
+  const hasStaffChildren = staffChildren.length > 0;
+  const showConnectorZone = hasLineChildren || hasStaffChildren || canEdit;
+  // De verticale verbinding moet altijd precies onder dit blokje blijven
+  // staan, ook als er (nog) maar aan één kant een stafafdeling hangt —
+  // dus reserveren beide kanten evenveel ruimte, gebaseerd op de kant
+  // met de meeste stafafdelingen, i.p.v. allebei hun eigen (mogelijk
+  // ongelijke) inhoud te laten bepalen hoe breed ze zijn.
+  const maxStaffPerSide = Math.max(leftStaff.length, rightStaff.length);
+  const staffSideMinWidth = maxStaffPerSide > 0 ? maxStaffPerSide * 170 + (maxStaffPerSide - 1) * 14 : 0;
   const nextStaff = nextStaffSlot(node);
 
   return (
@@ -65,13 +73,17 @@ export default function OrgTreeNode({
 
       {showConnectorZone && (
         <div className="org-connector">
-          <div className="org-staff-side org-staff-left">
+          <div className="org-staff-side org-staff-left" style={{ minWidth: staffSideMinWidth }}>
             {leftStaff.map((staff) => (
               <StaffNode key={staff.id} node={staff} canEdit={canEdit} onRename={onRename} onDelete={onDelete} />
             ))}
           </div>
           <div className="org-connector-center">
-            <div className="org-connector-line" />
+            {/* Alleen tekenen als er al écht iets aan hangt (staf- of
+                gewone kinderen) — een blote blad-afdeling hoeft geen
+                lijn te tonen, alleen de +-knoppen om iets toe te
+                voegen; die lijn ontstaat pas zodra dat gebeurt. */}
+            {(hasLineChildren || hasStaffChildren) && <div className="org-connector-line" />}
             {canEdit && (
               <button
                 type="button"
@@ -83,7 +95,7 @@ export default function OrgTreeNode({
               </button>
             )}
           </div>
-          <div className="org-staff-side org-staff-right">
+          <div className="org-staff-side org-staff-right" style={{ minWidth: staffSideMinWidth }}>
             {rightStaff.map((staff) => (
               <StaffNode key={staff.id} node={staff} canEdit={canEdit} onRename={onRename} onDelete={onDelete} />
             ))}
